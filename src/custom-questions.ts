@@ -106,15 +106,15 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
   if (typeof normalized === "string") {
     return normalized;
   }
-  raw = normalized;
+  const question = normalized;
 
-  const extras = Object.keys(raw).filter((key) => !QUESTION_KEYS.has(key));
+  const extras = Object.keys(question).filter((key) => !QUESTION_KEYS.has(key));
   if (extras.length > 0) {
-    const hint = aliasHint(extras, raw.type);
+    const hint = aliasHint(extras, question.type);
     return `${prefix} has unknown field(s): ${extras.join(", ")}${hint}`;
   }
 
-  const id = raw.id;
+  const id = question.id;
   if (typeof id !== "string" || !QUESTION_ID.test(id)) {
     return `${prefix}.id must be a snake_case identifier (e.g. hottest_candidate)`;
   }
@@ -123,18 +123,18 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
   }
   seen.add(id);
 
-  const type = raw.type;
+  const type = question.type;
   if (typeof type !== "string" || !QUESTION_TYPES.has(type)) {
     return `${prefix}.type must be "choice", "noul", or "score"`;
   }
 
-  const instructions = raw.instructions;
+  const instructions = question.instructions;
   if (typeof instructions !== "string" || instructions.trim().length === 0) {
     return `${prefix}.instructions must be a non-empty string`;
   }
 
   if (type === "choice") {
-    const criteria = parseChoiceCriteria(raw.criteria, prefix);
+    const criteria = parseChoiceCriteria(question.criteria, prefix);
     if (typeof criteria === "string") {
       return criteria;
     }
@@ -142,7 +142,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
   }
 
   if (type === "noul") {
-    const criteria = parseNoulCriteria(raw.criteria, prefix);
+    const criteria = parseNoulCriteria(question.criteria, prefix);
     if (typeof criteria === "string") {
       return criteria;
     }
@@ -151,7 +151,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
       : { id, type: "noul", instructions: instructions.trim() };
   }
 
-  const criteria = parseScoreCriteria(raw.criteria, prefix);
+  const criteria = parseScoreCriteria(question.criteria, prefix);
   if (typeof criteria === "string") {
     return criteria;
   }
