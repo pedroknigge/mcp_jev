@@ -16,6 +16,7 @@ Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [do
 - [Why this is not an LLM wrapper](#why-this-is-not-an-llm-wrapper)
 - [Install for agents & IDEs](#install-for-agents--ides)
 - [Tools](#tools-closed-catalog)
+- [Harness & computer-use](#harness--computer-use)
 - [Troubleshooting](#troubleshooting)
 
 ## Install (happy path)
@@ -34,7 +35,7 @@ git clone https://github.com/pedroknigge/mcp_jev.git $HOME\mcp_jev
 $HOME\mcp_jev\scripts\install.ps1
 ```
 
-Already cloned (e.g. Pedro’s Desktop path `/Users/pedroknigge/Desktop/mcp_jev`)? Run `./scripts/install.sh` from that repo. `MCP_JEV_HOME` overrides the **config dir** (`~/.mcp_jev`). Optional `MCP_JEV_CHECKOUT` overrides the git checkout.
+Already cloned? Run `./scripts/install.sh` from that checkout. `MCP_JEV_HOME` overrides the **config dir** (`~/.mcp_jev`). Optional `MCP_JEV_CHECKOUT` overrides the git checkout.
 
 The script: clones or pulls → `npm install && npm run build` → writes `~/.mcp_jev/bin/mcp_jev` → stores `TYPESAFE_API_KEY` **once** in `~/.mcp_jev/.env` (chmod 600) → prints/copies the MCP JSON.
 
@@ -139,7 +140,7 @@ Project: `.cursor/mcp.json` · User: `~/.cursor/mcp.json` (project wins on name 
 {
   "mcpServers": {
     "mcp_jev": {
-      "command": "/Users/pedroknigge/.mcp_jev/bin/mcp_jev"
+      "command": "/Users/YOU/.mcp_jev/bin/mcp_jev"
     }
   }
 }
@@ -230,11 +231,51 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 
 | id | What Jev judges | What **you** still do |
 | --- | --- | --- |
-| `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Compute **`code_gate`**. Jev does not merge or comment |
+| `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. Jev does not merge or comment |
 | `intent_router` | Closed intent Choice, jailbreak + policy Nouls, urgency Score | Route / refuse / hand off in code |
 | `locale_country` | Catalogue item → Argentina \| USA \| India \| Uruguay \| Saudi Arabia (or `unclear`) | Write the country to your catalogue |
+| `computer_use_step` | Next GUI `operation` + speculative targets from your closed item catalog; Nouls `goal_achieved` / `observation_stale`; Score `step_confidence` | Observe (OCR/AX/DOM), execute the op, writer LLM for typed text, stop rules |
+| `model_router` | `route` (fast_local \| strong_reasoner \| tools_heavy \| ask_user \| skip); Nouls code/browser/unsafe/lookup; Score `difficulty` | Map the lane in code. Thresholds stay in the caller |
 
 Packs live in `src/packs/` (in-repo). How to add one: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Harness & computer-use
+
+`computer_use_step` is the judgment layer for GUI / browser / mobile loops. **Code owns** observation (OCR, accessibility tree, DOM), execution, the writer LLM for free text, and stop rules. **Jev only picks** the next operation and a target from the closed catalogs you pass.
+
+Call it in a loop:
+
+1. Observe in the harness. Build `items[]` (and optional `offscreen_items[]`) with stable ids. Write a short `observation_summary`.
+2. `run_pack` `computer_use_step` with `goal`, `app_or_url`, that observation, recent `history`, and `flags`.
+3. One `systemOne` call fans out `operation` plus `click_target` / `type_target` / `offscreen_target` (speculative) plus `goal_achieved`, `observation_stale`, and `step_confidence`.
+4. In code: if `goal_achieved` is high and/or `operation` is `done`, stop. If `observation_stale` is high or `step_confidence` is low, re-observe — do not act.
+5. Execute **only** the chosen operation. For `click_item` use `click_target`; for `type_text` / `type_email` use `type_target` and a **writer LLM** (or a stored value) for the string; for `press_offscreen` use `offscreen_target`. Ignore the other target answers.
+6. Append the action to `history` and loop.
+
+**Do not put screenshots, pixels, or image blobs in Jev state.** State is structured text. The TypeSafe JS SDK `choice()` takes a `Record` of option keys, so this pack builds target options from `items[].id` at `run_pack`. You must pass a closed catalog; the MCP does not invent ids.
+
+Example state:
+
+```json
+{
+  "goal": "Sign in with the saved work account",
+  "app_or_url": "https://app.example.com/login",
+  "observation_summary": "Login form: email focused and empty, password empty, Sign in button, Forgot password link.",
+  "focused_field": "email",
+  "items": [
+    { "id": "email", "role": "textfield", "label": "Work email", "region": "form", "source": "ax" },
+    { "id": "password", "role": "textfield", "label": "Password", "region": "form", "source": "ax" },
+    { "id": "sign_in", "role": "button", "label": "Sign in", "region": "form", "source": "ax" }
+  ],
+  "offscreen_items": [
+    { "id": "privacy", "role": "link", "label": "Privacy", "region": "footer", "source": "ax" }
+  ],
+  "history": [{ "action": "wait", "result": "form_visible" }],
+  "flags": { "loading": false, "login_required": true, "keyboard_visible": true }
+}
+```
+
+Use `model_router` **before** a turn when you need a compute lane (`fast_local` vs `strong_reasoner` vs `tools_heavy` vs `ask_user` vs `skip`). Thresholds for both packs live in caller code, same as confidence gating on `pr_audit`.
 
 ## Architecture
 

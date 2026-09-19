@@ -39,9 +39,11 @@ A pack must include:
 
 Write questions the way TypeSafe asks: complete meaning in `instructions`, options in `criteria`, backtick paths into state (`title`, `message`). Question IDs are for code; they are not sent to Jev.
 
-Use the JS helpers only through `questionsFor()` — that is what `run_pack` sends to `client.systemOne({ state, questions, model })`.
+Use the JS helpers only through `questionsFor(pack, state)` — that is what `run_pack` sends to `client.systemOne({ state, questions, model })`.
 
-Add a registry or handler test if the pack has a special contract (for example: a gate that Jev must **not** compute).
+If a Choice catalog is not known until `run_pack` (item ids, file paths), set `questionsForState(state)` and build `choice()` criteria as a `Record` of those ids. `describe_pack` still returns the static `questions` template plus `dynamic_choice_from_state: true`. The TypeSafe JS SDK accepts dynamic option keys; do not invent ids the caller did not pass.
+
+Add a registry or handler test if the pack has a special contract (for example: a gate that Jev must **not** compute, or target options built from `items[]`).
 
 ## What not to add
 

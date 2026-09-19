@@ -10,8 +10,15 @@ export function toSdkQuestions(questions: PackQuestion[]): Questions {
   return out;
 }
 
-export function questionsFor(pack: PackDefinition): Questions {
+export function questionsFor(pack: PackDefinition, state?: unknown): Questions {
+  if (pack.questionsForState && isPlainObject(state)) {
+    return toSdkQuestions(pack.questionsForState(state));
+  }
   return toSdkQuestions(pack.questions);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function toSdkQuestion(question: PackQuestion) {

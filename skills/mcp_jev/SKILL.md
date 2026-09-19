@@ -4,7 +4,8 @@ description: >
   Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
   mcp_jev, Jev, TypeSafe, install/update this MCP, PR audit, intent routing,
-  locale/country, Cursor, Claude, Codex, Grok, or Antigravity. If tools are
+  locale/country, computer-use / GUI / browser / mobile harness, model router,
+  Cursor, Claude, Codex, Grok, or Antigravity. If tools are
   absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
   Always list_packs → describe_pack → run_pack. No ask_jev, no free-form
   questions, no side effects, never paste TYPESAFE_API_KEY into chat.
@@ -45,10 +46,24 @@ Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + this skill + GitHub README |
-| A judgment that exists as a pack (`pr_audit`, `intent_router`, `locale_country`, or later in-repo ids) | **mcp_jev** tools |
+| A judgment that exists as a pack (`pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, or later in-repo ids) | **mcp_jev** tools |
+| Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — see below |
+| Which model / tool lane this turn | **`model_router`** — thresholds in your code |
 | Designing new TypeSafe questions / SDK code | Official **TypeSafe skill** (`npx skills add typesafe-ai/skills --skill typesafe-ai`) |
-| Prose, patches, reasoning | A **plain LLM** (you) |
-| Merge, comment, refund, catalogue write | **Your code / other MCPs** after typed answers |
+| Prose, patches, reasoning, typed-in text | A **plain LLM** (you) |
+| Merge, comment, refund, catalogue write, clicks | **Your code / other MCPs** after typed answers |
+
+### Which pack
+
+| Situation | Pack | Not this |
+| --- | --- | --- |
+| Structured screen state (OCR / AX / DOM ids) → one next click/type/scroll/wait/done | `computer_use_step` | Do not send screenshots. Do not use `intent_router` (that is for utterances) or `model_router` (that is for compute lanes). |
+| Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
+| Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
+| Pull request merge risk, staged as risk Nouls → file Choice over `files[]` → severity Score | `pr_audit` | Jev does not write the review or compute `code_gate`. |
+| Catalogue SKU → one of five countries | `locale_country` | Not a geocoder for people or addresses. |
+
+`computer_use_step` loop: observe in code → `run_pack` → execute only the chosen `operation` + matching target → writer LLM only for `type_text` / `type_email` → stop rules in the harness. Jev never sees pixels.
 
 If the user wants a question that is not in a pack, say this server cannot do that. Offer a new in-repo pack (`CONTRIBUTING.md`) or the TypeSafe SDK.
 
@@ -58,7 +73,7 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 
 ## Verify
 
-1. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 3. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
+1. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 5. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
 2. **`list_packs`** — pick an `id` from the result.
 3. Then `describe_pack` / `run_pack`.
 
@@ -99,9 +114,11 @@ Packs live under `src/packs/` in [pedroknigge/mcp_jev](https://github.com/pedrok
 
 | id | Jev answers | Caller still does |
 | --- | --- | --- |
-| `pr_audit` | `merge_risk`; Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Compute **`code_gate`**. No merge/comment here. |
+| `pr_audit` | `merge_risk`; Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. |
 | `intent_router` | `intent`; Nouls `jailbreak` / `policy_violation`; Score `urgency` | Route / refuse in code. |
 | `locale_country` | `country` (AR/US/IN/UY/SA/`unclear`); Noul `explicit_geo_cue`; Score `locale_signal` | Write the catalogue yourself. |
+| `computer_use_step` | `operation`; `click_target` / `type_target` / `offscreen_target` from your item ids; Nouls `goal_achieved` / `observation_stale`; Score `step_confidence` | Observe, click/type/scroll, writer LLM for text, stop. No screenshots in state. |
+| `model_router` | `route`; Nouls `needs_code_edit` / `needs_browser` / `unsafe_or_irreversible` / `simple_lookup`; Score `difficulty` | Map the lane. Thresholds in your code. |
 
 ## Required workflow
 
@@ -127,6 +144,8 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Invent `ask_jev` or free-form questions
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
 - Ask Jev for `code_gate` on `pr_audit`
+- Put screenshots or image blobs in `computer_use_step` state
+- Invent item ids that were not in the closed `items[]` catalog
 - Retry `invalid_state` by guessing fields
 - Call `run_pack` when `api_key_set` is false
 
