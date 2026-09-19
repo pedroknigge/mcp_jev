@@ -34,7 +34,7 @@ Use it when the host already has structured state and needs a closed-catalog cal
 | **mcp_jev** | Versioned packs or typed custom questions → `systemOne` → Choice / Noul / Score |
 | **Host config** | Keyless `command` = `~/.mcp_jev/bin/mcp_jev` |
 
-Closed tools only: `list_packs` / `describe_pack` / `run_pack` / `run_questions` / `ping`. Key-once in `~/.mcp_jev`. Patterns here follow common ecosystem loops (computer-use, review pipelines, model routing) reimplemented as packs — no copied code, no third-party trademarks. Packs are recipes, not the ceiling: if none fits, build closed state + typed questions.
+Closed tools only: `list_packs` / `describe_pack` / `run_pack` / `run_questions` / `ping`. Key-once in `~/.mcp_jev`. Patterns here follow common ecosystem loops (computer-use, review pipelines, model routing) reimplemented as packs — no copied code, no third-party trademarks. **Packs are shortcuts:** if one fits, `run_pack`. If none fits, build closed state + typed Choice / Noul / Score and call `run_questions`.
 
 | | Jev (System One) | Chat LLM |
 | --- | --- | --- |
@@ -147,9 +147,9 @@ Default `smoke:packs` injects the same mocked `systemOne` pattern as `npm test` 
 
 ### `run_questions` (no pack fits)
 
-Packs are recipes, not the ceiling. `list_packs` first. If **no pack fits**, do **not** stop: build a closed state object and typed Choice / Noul / Score questions, then call **`run_questions`**. Same `systemOne` path as `run_pack`. Not “write me a review”. After a pattern repeats 2–3 times, upstream a named pack.
+**Packs are shortcuts.** `list_packs` first. If an id fits, `describe_pack` + `run_pack` (for example hardcoded UI copy → **`i18n_copy`**). If **no pack fits**, do **not** stop: build a closed state object and typed Choice / Noul / Score questions, then call **`run_questions`**. Same `systemOne` path as `run_pack`. Not “write me a review”. After a pattern repeats 2–3 times, upstream a named pack.
 
-Example (i18n hardcoded copy): state `{ path, candidates:[{id,text,kind}] }` + Noul `has_user_facing_hardcoded_copy` + Score `i18n_debt` + Choice `hottest_candidate` over candidate ids plus `none`. Full recipe: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md).
+Example (public-API / changelog break — no pack): state `{ path, change_summary, symbols:[{id,kind,note}] }` + Noul `is_breaking_for_callers` + Score `doc_debt` + Choice `hottest_symbol` over symbol ids plus `none`. Full recipe: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md).
 
 ### `computer_use_step` (harness)
 
@@ -282,7 +282,7 @@ Optional Mode B: one call with `files[]` (paths only) + short `batch_notes` — 
 
 ### `i18n_copy` (hardcoded UI copy)
 
-Per-file audit of hardcoded strings that should live in an i18n layer. The harness extracts a **closed** `candidates[]` catalog (max ~20). Jev does not rewrite JSX or locale JSON.
+**Shortcut pack.** Do not rebuild this as `run_questions`. Per-file audit of hardcoded strings that should live in an i18n layer. The harness extracts a **closed** `candidates[]` catalog (max ~20). Jev does not rewrite JSX or locale JSON.
 
 Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized` → Score `i18n_debt` (0 clean → 3 blocking for a multi-locale ship) → Choice `hottest_candidate` from `candidates[].id` plus `none` → Choice `primary_bucket` (`ui_copy` | `error_message` | `marketing` | `dev_only` | `mixed` | `none`).
 
@@ -414,7 +414,7 @@ Same wrapper `command`. Some editors use `context_servers` instead of `mcpServer
 >
 > If the MCP tools are missing: tell the user to run `scripts/install.sh` (or `install.ps1`) from that repo, paste the printed snippets, set the key once (`config set-key` / install prompt), run `mcp_jev doctor`, restart the host.
 >
-> Always: `list_packs` → if a pack fits, `describe_pack` → `run_pack`. If **no pack fits**, do not stop: build closed state + typed questions and call `run_questions`. Side effects stay in **your** code. Never put `TYPESAFE_API_KEY` in chat. If `ping.api_key_set` is false, run `mcp_jev config set-key` — do not embed the key in every host config.
+> Always: `list_packs`. Packs are shortcuts: if one fits, `describe_pack` → `run_pack`. If **no pack fits**, do not stop: build closed state + typed Choice / Noul / Score and call `run_questions`. Side effects stay in **your** code. Never put `TYPESAFE_API_KEY` in chat. If `ping.api_key_set` is false, run `mcp_jev config set-key` — do not embed the key in every host config.
 
 ## Tools (closed catalog)
 

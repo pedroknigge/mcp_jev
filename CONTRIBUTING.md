@@ -48,13 +48,13 @@ Add a registry or handler test if the pack has a special contract (for example: 
 
 ## Custom questions (`run_questions`)
 
-`run_questions` is the **typed escape hatch** when no in-repo pack fits. It is still System One only:
+**Packs are shortcuts.** Prefer `run_pack` when `list_packs` has an id. `run_questions` is the **typed escape hatch** when none fits. It is still System One only:
 
 - Fail-closed schema before TypeSafe (Choice / Noul / Score; Choice cap matches packs)
 - Same `systemOne` path and API-key rule as `run_pack`
 - No side effects, no free-form prompt, no essay
 
-Agents should `list_packs` first. If none fits, they build closed state + typed questions (see [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md)). After a custom pattern repeats 2–3 times, add a named pack instead of leaving callers on the escape hatch.
+Agents should `list_packs` first. If none fits, they build closed state + typed questions (see [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md)). After a custom pattern repeats 2–3 times, add a named pack instead of leaving callers on the escape hatch — that is how `i18n_copy` landed.
 
 ## What not to add
 

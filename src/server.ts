@@ -38,7 +38,7 @@ export function createServer(deps: ServerDeps): McpServer {
     {
       title: "List Jev packs",
       description:
-        "List the closed catalog of TypeSafe Jev packs. Returns id, title, summary, and when_to_use. If no pack fits, do not stop — use run_questions with closed state + typed Choice/Noul/Score. There is no free-form ask tool.",
+        "List the closed catalog of TypeSafe Jev packs. Packs are shortcuts: if an id fits, describe_pack + run_pack. If no pack fits, do not stop — use run_questions with closed state + typed Choice/Noul/Score. There is no free-form ask tool.",
     },
     async () => jsonResult(handleListPacks()),
   );
@@ -89,7 +89,7 @@ export function createServer(deps: ServerDeps): McpServer {
     {
       title: "Run typed custom questions",
       description:
-        "When no pack fits, validate caller-built state plus typed Choice / Noul / Score questions and call the same TypeSafe System One path as run_pack. Not chat and not essay generation. Fail-closed schema: Choice is a closed option map (max 255; include a refuse key if needed), Noul is yes/no, Score is ≥2 ordered levels. Returns typed answers + usage. Requires TYPESAFE_API_KEY. No side effects.",
+        "Typed custom path when no pack shortcut fits. Validate caller-built state plus typed Choice / Noul / Score and call the same TypeSafe System One path as run_pack. Not chat and not essay generation. Prefer run_pack when list_packs has an id (e.g. i18n_copy). Fail-closed schema: Choice is a closed option map (max 255; include a refuse key if needed), Noul is yes/no, Score is ≥2 ordered levels. Returns typed answers + usage. Requires TYPESAFE_API_KEY. No side effects.",
       inputSchema: {
         state: z
           .record(z.unknown())

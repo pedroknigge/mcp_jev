@@ -8,16 +8,17 @@ description: >
   GUI / browser / mobile harness, model router, Cursor, Claude, Codex, Grok, or
   Antigravity. If tools
   are absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
-  Always list_packs. If a pack fits: describe_pack → run_pack. If no pack
-  fits: run_questions with closed state + typed Choice/Noul/Score. No
-  ask_jev, no essays, no side effects, never paste TYPESAFE_API_KEY into chat.
+  Always list_packs. Packs are shortcuts: if one fits, describe_pack →
+  run_pack. If no pack fits: run_questions with closed state + typed
+  Choice/Noul/Score. No ask_jev, no essays, no side effects, never paste
+  TYPESAFE_API_KEY into chat.
 ---
 
 # mcp_jev — run Jev packs, do not chat
 
-**Jev is not an LLM chat model.** TypeSafe System One (flagship: Jev) takes **state + typed questions** and returns **Choice / Noul / Score** answers. This MCP runs **versioned packs** and, when none fits, **`run_questions`** (same System One path; not chat). Side effects stay in your code. mcp_jev is the judgment layer: fast typed decisions for agents and harnesses.
+**Jev is not an LLM chat model.** TypeSafe System One (flagship: Jev) takes **state + typed questions** and returns **Choice / Noul / Score** answers. **Packs are shortcuts** (`run_pack`). When no pack fits, **`run_questions`** is the typed custom path (same System One; not chat). Side effects stay in your code. mcp_jev is the judgment layer: fast typed decisions for agents and harnesses.
 
-**Latest install/config source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) (README + `scripts/`). TypeSafe API docs: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Host extras: [`references/install.md`](references/install.md). **Exact pack ids, state fields, and question ids:** [`references/pack-catalog.md`](references/pack-catalog.md) (generated from `src/packs/`; `npm test` fails if it drifts). **No pack fits:** [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md).
+**Latest install/config source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) (README + `scripts/`). TypeSafe API docs: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Host extras: [`references/install.md`](references/install.md). **Exact pack ids, state fields, and question ids:** [`references/pack-catalog.md`](references/pack-catalog.md) (generated from `src/packs/`; `npm test` fails if it drifts). **No pack fits (custom Choice / Noul / Score):** [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md).
 
 ## First-run script
 
@@ -38,8 +39,9 @@ mcp_jev doctor
 # After install, agents can run: npm run smoke:packs
 
 # 4) On the MCP host after restart:
-#    ping → list_packs → describe_pack → run_pack
-#    If no pack fits: run_questions (closed state + typed questions)
+#    ping → list_packs
+#    Packs are shortcuts: describe_pack → run_pack
+#    If no pack fits: run_questions (closed state + typed Choice/Noul/Score)
 ```
 
 If `doctor` is not ready: `mcp_jev config set-key`, then doctor again. Never paste the key into chat or host JSON.
@@ -80,13 +82,13 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
-| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** `run_pack` — packs are shortcuts |
-| A typed judgment **no pack covers** | **`run_questions`** — closed state + Choice / Noul / Score. See [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md) |
+| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **`run_pack`** — **packs are shortcuts** |
+| A typed Choice / Noul / Score judgment **no pack covers** | **`run_questions`** — closed state + typed questions. Not chat. See [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md) |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
 | Per-file / full-repo / architecture / "try Jev on these files" | **`mcp_jev scan`** / **`code_audit`** Pass 1 (signals-first) — Full repo scan recipe. Not `pr_audit`. |
-| Hardcoded UI strings vs i18n (`t()` / locale files) | **`i18n_copy`** — recipe below. Not `code_audit`. |
+| Hardcoded UI strings vs i18n (`t()` / locale files) | **`i18n_copy`** (shortcut pack) — recipe below. Not `run_questions`. Not `code_audit`. |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
 | Claimed behavior vs named tests / CI | **`verify_gap`** — `verifyGapCodeGate` in caller code |
@@ -110,70 +112,72 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Proposed shell command → risk signals | `command_risk` | Not an allowlist. Sandbox still required. |
 | One claim vs named evidence → ship / add proof / block | `verify_gap` | Not `review_diff.test_gap` or `code_audit.missing_verification`. Jev does not write the test or compute `code_gate`. |
 | One module’s `imports[]` / `exports[]` → layering fix | `boundary_check` | Not a full-repo `code_audit`. Jev does not move files. |
-| One UI file + closed hardcoded-string catalog → migrate / debt / hottest extract | `i18n_copy` | Not `code_audit` (structure). Not a locale-file rewrite. Gate in caller (`gateI18nCopy`). |
+| One UI file + closed hardcoded-string catalog → migrate / debt / hottest extract | `i18n_copy` (shortcut) | Not `run_questions`. Not `code_audit` (structure). Not a locale-file rewrite. Gate in caller (`gateI18nCopy`). |
+| Typed Choice / Noul / Score with **no** matching pack id | **`run_questions`** (not a pack) | Do not invent `ask_jev`. Do not stop. Prefer a pack shortcut when one exists. |
 
-If **no pack fits**, do **not** stop and do **not** invent `ask_jev`. Build closed state + typed questions and call **`run_questions`**. After that pattern repeats 2–3 times, upstream a named pack (`CONTRIBUTING.md`).
+**Packs are shortcuts.** `list_packs` first. If an id fits → `describe_pack` + `run_pack`. If **no pack fits**, do **not** stop and do **not** invent `ask_jev`. Build closed state + typed Choice / Noul / Score and call **`run_questions`**. After that custom pattern repeats 2–3 times, upstream a named pack (`CONTRIBUTING.md`) — that is how `i18n_copy` landed.
 
 ## Recipe: `run_questions` (no pack fits)
 
-Not chat. Not “write me a review”. Same `systemOne` path as `run_pack`. Requires the API key. No side effects.
+**Packs are shortcuts.** Hardcoded UI copy is **`i18n_copy`**, not this tool. Use `run_questions` only when `list_packs` has no id. Not chat. Not “write me a review”. Same `systemOne` path as `run_pack`. Requires the API key. No side effects.
 
-1. `list_packs`. If an id fits → `describe_pack` + `run_pack`.
+1. `list_packs`. If an id fits → `describe_pack` + `run_pack` (the shortcut).
 2. If **no pack fits**: collect a **closed, small** state object (named evidence — not the repo).
 3. Ask only typed questions: Choice (closed `Record` of options, 2–255, include a refuse key if needed), Noul (`{ true, false }` optional), Score (`string[]` ≥2 ordered levels).
 4. `run_questions` `{ state, questions, model? }`.
 5. Compose gates in **your** code.
 6. After the same custom pattern repeats 2–3 times, add a named pack.
 
-Example — i18n hardcoded copy. State `{ path, candidates:[{id,text,kind}] }`. Noul `has_user_facing_hardcoded_copy`, Score `i18n_debt`, Choice `hottest_candidate` over candidate ids plus `none`.
+Example — public-API / changelog break (no pack). State `{ path, change_summary, symbols:[{id,kind,note}] }`. Noul `is_breaking_for_callers`, Score `doc_debt`, Choice `hottest_symbol` over symbol ids plus `none`.
 
 ```json
 {
   "state": {
-    "path": "src/components/Welcome.tsx",
-    "candidates": [
-      { "id": "hero_title", "text": "Welcome back", "kind": "jsx_text" },
-      { "id": "cta", "text": "Get started", "kind": "jsx_text" },
-      { "id": "debug", "text": "TODO: remove", "kind": "comment" }
+    "path": "src/api/client.ts",
+    "change_summary": "Renamed fetchUser to getUser and dropped the locale argument.",
+    "symbols": [
+      { "id": "fetchUser", "kind": "export", "note": "removed" },
+      { "id": "getUser", "kind": "export", "note": "added; no locale arg" },
+      { "id": "ClientOptions", "kind": "type", "note": "unchanged" }
     ]
   },
   "questions": [
     {
-      "id": "has_user_facing_hardcoded_copy",
+      "id": "is_breaking_for_callers",
       "type": "noul",
-      "instructions": "Does `path` contain user-facing hardcoded copy among `candidates` (not comments, not identifiers)?",
+      "instructions": "Does `change_summary` plus `symbols` at `path` break existing callers (removed export, changed arity, or incompatible type)?",
       "criteria": {
-        "true": "At least one candidate is user-visible product copy that should be extracted.",
-        "false": "No user-facing hardcoded copy; remaining strings are comments, identifiers, or already keyed."
+        "true": "At least one caller-visible contract change is breaking.",
+        "false": "Compatible rename/add, or only internal symbols moved."
       }
     },
     {
-      "id": "i18n_debt",
+      "id": "doc_debt",
       "type": "score",
-      "instructions": "How much i18n debt is in `candidates` at `path`?",
+      "instructions": "How much public-doc / changelog debt does this change create?",
       "criteria": [
-        "No user-facing hardcoded copy, or only already-keyed strings.",
-        "A few isolated strings; easy to extract.",
-        "Several user-facing strings; localization will miss them.",
-        "Widespread hardcoded copy; shipping this locale-broken."
+        "No public contract change; changelog optional.",
+        "Small note: rename or added optional field.",
+        "Needs a migration blurb for callers.",
+        "Ship-blocker: undocumented breaking change."
       ]
     },
     {
-      "id": "hottest_candidate",
+      "id": "hottest_symbol",
       "type": "choice",
-      "instructions": "Which candidate is the hottest user-facing hardcoded string to extract first? Options are `candidates[].id` plus `none`.",
+      "instructions": "Which symbol should the changelog mention first? Options are `symbols[].id` plus `none`.",
       "criteria": {
-        "hero_title": "Welcome back — likely visible heading.",
-        "cta": "Get started — likely a button.",
-        "debug": "TODO: remove — likely a comment.",
-        "none": "No candidate is user-facing hardcoded copy worth extracting."
+        "fetchUser": "Removed export — callers still import this name.",
+        "getUser": "New export with a dropped argument.",
+        "ClientOptions": "Unchanged type.",
+        "none": "No symbol needs a changelog mention."
       }
     }
   ]
 }
 ```
 
-Anti-patterns: free-form “write me a review”; open-ended options; dumping the whole repo into state.
+Anti-patterns: free-form “write me a review”; open-ended options; dumping the whole repo into state; using `run_questions` when a pack shortcut already exists (`i18n_copy`, `review_diff`, …).
 
 ## Recipe: `computer_use_step`
 
@@ -265,7 +269,7 @@ Example gate: `gateCodeAudit` in `src/policy-examples.ts` → `ok` | `glance` | 
 
 ## Recipe: `i18n_copy`
 
-Per-file hardcoded UI-copy audit. Harness extracts a **closed** `candidates[]` catalog (max ~20; caller truncates). Jev does not rewrite the file or edit locale JSON.
+**Shortcut pack** for hardcoded UI copy. Do **not** rebuild this as `run_questions`. Harness extracts a **closed** `candidates[]` catalog (max ~20; caller truncates). Jev does not rewrite the file or edit locale JSON.
 
 1. Scan one UI file (`tsx` / `jsx` / `vue` / `svelte`). Build `candidates[]` of `{ id, text, kind, line? }`. `kind` is closed: `jsx_text` | `jsx_attr` | `string_literal` | `toast` | `schema_message`.
 2. Set `uses_i18n_api` from a cheap grep (`t()`, `useTranslations`, `FormattedMessage`, `msg`). Optional `framework_i18n` (`next-intl` | `i18next` | `react-intl` | `lingui` | `none` | `unknown`) and `locale_files_present`.
@@ -456,8 +460,8 @@ Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New p
 
 1. If tools missing → install + `doctor` (above)
 2. `list_packs`
-3. If a pack fits → `describe_pack` → collect short named state → `run_pack`
-4. If **no pack fits** → do **not** stop → closed state + typed questions → `run_questions`
+3. Packs are shortcuts: if an id fits → `describe_pack` → collect short named state → `run_pack`
+4. If **no pack fits** → do **not** stop → closed state + typed Choice / Noul / Score → `run_questions`
 5. Compose gates **after** the tool returns
 6. After a custom pattern repeats 2–3 times, upstream a named pack
 

@@ -9,47 +9,47 @@ import { ToolError } from "../src/errors.js";
 import { handleRunQuestions } from "../src/handlers.js";
 import { MAX_CHOICE_OPTIONS } from "../src/packs/catalog-choice.js";
 
-const i18nState = {
-  path: "src/components/Welcome.tsx",
-  candidates: [
-    { id: "hero_title", text: "Welcome back", kind: "jsx_text" },
-    { id: "cta", text: "Get started", kind: "jsx_text" },
-    { id: "debug", text: "TODO: remove", kind: "comment" },
+const changelogState = {
+  path: "src/api/client.ts",
+  change_summary: "Renamed fetchUser to getUser and dropped the locale argument.",
+  symbols: [
+    { id: "fetchUser", kind: "export", note: "removed" },
+    { id: "getUser", kind: "export", note: "added; no locale arg" },
+    { id: "ClientOptions", kind: "type", note: "unchanged" },
   ],
 };
 
-const i18nQuestions = [
+const changelogQuestions = [
   {
-    id: "has_user_facing_hardcoded_copy",
+    id: "is_breaking_for_callers",
     type: "noul",
     instructions:
-      "Does `path` contain user-facing hardcoded copy among `candidates` (not comments, not identifiers)?",
+      "Does `change_summary` plus `symbols` at `path` break existing callers (removed export, changed arity, or incompatible type)?",
     criteria: {
-      true: "At least one candidate is user-visible product copy that should be extracted.",
-      false: "No user-facing hardcoded copy; remaining strings are comments, identifiers, or already keyed.",
+      true: "At least one caller-visible contract change is breaking.",
+      false: "Compatible rename/add, or only internal symbols moved.",
     },
   },
   {
-    id: "i18n_debt",
+    id: "doc_debt",
     type: "score",
-    instructions: "How much i18n debt is in `candidates` at `path`?",
+    instructions: "How much public-doc / changelog debt does this change create?",
     criteria: [
-      "No user-facing hardcoded copy, or only already-keyed strings.",
-      "A few isolated strings; easy to extract.",
-      "Several user-facing strings; localization will miss them.",
-      "Widespread hardcoded copy; shipping this locale-broken.",
+      "No public contract change; changelog optional.",
+      "Small note: rename or added optional field.",
+      "Needs a migration blurb for callers.",
+      "Ship-blocker: undocumented breaking change.",
     ],
   },
   {
-    id: "hottest_candidate",
+    id: "hottest_symbol",
     type: "choice",
-    instructions:
-      "Which candidate is the hottest user-facing hardcoded string to extract first? Options are `candidates[].id` plus `none`.",
+    instructions: "Which symbol should the changelog mention first? Options are `symbols[].id` plus `none`.",
     criteria: {
-      hero_title: "Welcome back — likely visible heading.",
-      cta: "Get started — likely a button.",
-      debug: "TODO: remove — likely a comment.",
-      none: "No candidate is user-facing hardcoded copy worth extracting.",
+      fetchUser: "Removed export — callers still import this name.",
+      getUser: "New export with a dropped argument.",
+      ClientOptions: "Unchanged type.",
+      none: "No symbol needs a changelog mention.",
     },
   },
 ];
@@ -64,7 +64,7 @@ test("run_questions refuses to call TypeSafe without a key", async () => {
   await assert.rejects(
     () =>
       handleRunQuestions(
-        { state: i18nState, questions: i18nQuestions },
+        { state: changelogState, questions: changelogQuestions },
         {
           config,
           systemOne: async () => {
@@ -81,27 +81,27 @@ test("run_questions refuses to call TypeSafe without a key", async () => {
 test("run_questions validates schema before calling TypeSafe", async () => {
   const config = configWithKey();
   const cases: Array<{ label: string; input: { state?: unknown; questions?: unknown; model?: unknown } }> = [
-    { label: "missing questions", input: { state: i18nState } },
-    { label: "empty questions", input: { state: i18nState, questions: [] } },
-    { label: "unknown type", input: { state: i18nState, questions: [{ id: "x", type: "essay", instructions: "Write a review", criteria: {} }] } },
+    { label: "missing questions", input: { state: changelogState } },
+    { label: "empty questions", input: { state: changelogState, questions: [] } },
+    { label: "unknown type", input: { state: changelogState, questions: [{ id: "x", type: "essay", instructions: "Write a review", criteria: {} }] } },
     {
       label: "one choice option",
       input: {
-        state: i18nState,
+        state: changelogState,
         questions: [{ id: "pick", type: "choice", instructions: "Pick one", criteria: { only: "one option" } }],
       },
     },
     {
       label: "one score level",
       input: {
-        state: i18nState,
+        state: changelogState,
         questions: [{ id: "debt", type: "score", instructions: "How bad", criteria: ["fine"] }],
       },
     },
     {
       label: "duplicate ids",
       input: {
-        state: i18nState,
+        state: changelogState,
         questions: [
           { id: "dup", type: "noul", instructions: "First" },
           { id: "dup", type: "noul", instructions: "Second" },
@@ -110,7 +110,7 @@ test("run_questions validates schema before calling TypeSafe", async () => {
     },
     {
       label: "array state",
-      input: { state: ["src/a.ts", "src/b.ts"], questions: i18nQuestions },
+      input: { state: ["src/a.ts", "src/b.ts"], questions: changelogQuestions },
     },
   ];
 
@@ -149,44 +149,44 @@ test("parseCustomRunInput enforces Choice cap and JSON state", () => {
   const circular: Record<string, unknown> = { path: "x.ts" };
   circular.self = circular;
   assert.throws(
-    () => parseCustomRunInput({ state: circular, questions: i18nQuestions }),
+    () => parseCustomRunInput({ state: circular, questions: changelogQuestions }),
     (err: unknown) => err instanceof ToolError && err.code === "invalid_state",
   );
 });
 
-test("run_questions maps an i18n-style custom judgment onto mocked systemOne", async () => {
+test("run_questions maps a changelog-style custom judgment onto mocked systemOne", async () => {
   const config = configWithKey();
   const result = await handleRunQuestions(
-    { state: i18nState, questions: i18nQuestions },
+    { state: changelogState, questions: changelogQuestions },
     {
       config,
       systemOne: async (input) => {
         assert.equal(input.model, "jev-latest");
-        assert.deepEqual(input.state, i18nState);
-        assert.equal(input.questions.has_user_facing_hardcoded_copy?.type, "noul");
-        assert.equal(input.questions.i18n_debt?.type, "score");
-        assert.equal(input.questions.hottest_candidate?.type, "choice");
-        const hottest = input.questions.hottest_candidate;
+        assert.deepEqual(input.state, changelogState);
+        assert.equal(input.questions.is_breaking_for_callers?.type, "noul");
+        assert.equal(input.questions.doc_debt?.type, "score");
+        assert.equal(input.questions.hottest_symbol?.type, "choice");
+        const hottest = input.questions.hottest_symbol;
         if (hottest?.type !== "choice") {
-          throw new Error("expected hottest_candidate choice");
+          throw new Error("expected hottest_symbol choice");
         }
-        assert.deepEqual(Object.keys(hottest.criteria).sort(), ["cta", "debug", "hero_title", "none"]);
+        assert.deepEqual(Object.keys(hottest.criteria).sort(), ["ClientOptions", "fetchUser", "getUser", "none"]);
         return {
           model: "jev-latest",
           answers: {
-            has_user_facing_hardcoded_copy: { type: "noul", noul: 0.86 },
-            i18n_debt: {
+            is_breaking_for_callers: { type: "noul", noul: 0.86 },
+            doc_debt: {
               type: "score",
-              score: 1.3,
+              score: 2.1,
               confidence: 0.62,
-              legend: { 0: "none", 1: "few", 2: "several", 3: "widespread" },
-              probabilities: { 0: 0.05, 1: 0.7, 2: 0.2, 3: 0.05 },
+              legend: { 0: "none", 1: "small", 2: "migration", 3: "blocker" },
+              probabilities: { 0: 0.05, 1: 0.2, 2: 0.7, 3: 0.05 },
             },
-            hottest_candidate: {
+            hottest_symbol: {
               type: "choice",
-              choice: "hero_title",
+              choice: "fetchUser",
               confidence: 0.71,
-              probabilities: { hero_title: 0.71, cta: 0.2, debug: 0.04, none: 0.05 },
+              probabilities: { fetchUser: 0.71, getUser: 0.2, ClientOptions: 0.04, none: 0.05 },
             },
           },
           usage: { input_tokens: 90, output_tokens: 14 },
@@ -196,9 +196,9 @@ test("run_questions maps an i18n-style custom judgment onto mocked systemOne", a
   );
 
   assert.equal(result.model, "jev-latest");
-  assert.equal((result.answers as { hottest_candidate: { choice: string } }).hottest_candidate.choice, "hero_title");
+  assert.equal((result.answers as { hottest_symbol: { choice: string } }).hottest_symbol.choice, "fetchUser");
   assert.equal(
-    (result.answers as { has_user_facing_hardcoded_copy: { noul: number } }).has_user_facing_hardcoded_copy.noul,
+    (result.answers as { is_breaking_for_callers: { noul: number } }).is_breaking_for_callers.noul,
     0.86,
   );
   assert.deepEqual(result.usage, { input_tokens: 90, output_tokens: 14 });
@@ -208,7 +208,7 @@ test("run_questions maps an i18n-style custom judgment onto mocked systemOne", a
 test("run_questions accepts an optional model override", async () => {
   const config = configWithKey();
   const result = await handleRunQuestions(
-    { state: i18nState, questions: i18nQuestions, model: "jev-custom" },
+    { state: changelogState, questions: changelogQuestions, model: "jev-custom" },
     {
       config,
       systemOne: async (input) => {
@@ -216,9 +216,9 @@ test("run_questions accepts an optional model override", async () => {
         return {
           model: "jev-custom",
           answers: {
-            has_user_facing_hardcoded_copy: { type: "noul", noul: 0.4 },
-            i18n_debt: { type: "score", score: 0.2, confidence: 0.5, legend: {}, probabilities: {} },
-            hottest_candidate: { type: "choice", choice: "none", confidence: 0.6, probabilities: { none: 0.6 } },
+            is_breaking_for_callers: { type: "noul", noul: 0.4 },
+            doc_debt: { type: "score", score: 0.2, confidence: 0.5, legend: {}, probabilities: {} },
+            hottest_symbol: { type: "choice", choice: "none", confidence: 0.6, probabilities: { none: 0.6 } },
           },
           usage: { input_tokens: 10, output_tokens: 2 },
         } as SystemOneResult<Questions>;

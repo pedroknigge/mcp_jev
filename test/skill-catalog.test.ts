@@ -128,23 +128,35 @@ test("docs teach run_questions and mention every MCP tool id", () => {
     assert.ok(readme.includes(`\`${id}\``), `README.md missing tool id ${id}`);
   }
 
+  assert.match(skill, /[Pp]acks are shortcuts/);
   assert.match(skill, /If \*\*no pack fits\*\*/);
-  assert.match(skill, /has_user_facing_hardcoded_copy/);
-  assert.match(skill, /i18n_debt/);
-  assert.match(skill, /hottest_candidate/);
+  assert.match(skill, /is_breaking_for_callers/);
+  assert.match(skill, /doc_debt/);
+  assert.match(skill, /hottest_symbol/);
   assert.match(skill, /CUSTOM_JUDGMENTS\.md/);
+  assert.match(skill, /Shortcut pack/);
   assert.doesNotMatch(skill, /Four tools\. No others/);
   assert.doesNotMatch(skill, /say this server cannot do that/);
+  assert.doesNotMatch(
+    skill,
+    /A typed judgment \*\*no pack covers\*\* \(e\.g\. i18n hardcoded copy\)/,
+  );
 
   assert.match(readme, /run_questions/);
+  assert.match(readme, /[Pp]acks are shortcuts/);
+  assert.match(readme, /is_breaking_for_callers/);
   assert.match(contributing, /`run_questions`/);
   assert.match(contributing, /typed escape hatch/);
+  assert.match(contributing, /[Pp]acks are shortcuts/);
   assert.doesNotMatch(contributing, /A tool that accepts arbitrary TypeSafe questions/);
 
   assert.match(custom, /run_questions/);
-  assert.match(custom, /has_user_facing_hardcoded_copy/);
-  assert.match(custom, /i18n_debt/);
-  assert.match(custom, /hottest_candidate/);
+  assert.match(custom, /[Pp]acks are shortcuts/);
+  assert.match(custom, /is_breaking_for_callers/);
+  assert.match(custom, /doc_debt/);
+  assert.match(custom, /hottest_symbol/);
+  assert.match(custom, /i18n_copy/);
   assert.match(custom, /list_packs/);
   assert.match(custom, /write me a review/i);
+  assert.doesNotMatch(custom, /## Example: i18n hardcoded copy/);
 });
