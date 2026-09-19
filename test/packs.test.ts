@@ -68,8 +68,11 @@ test("pr_audit documents that code_gate is caller-owned", () => {
   ]);
   assert.ok(!questionIds.includes("code_gate"));
   assert.ok(pack.notes.some((note) => note.includes("code_gate is computed by the caller")));
+  assert.ok(pack.notes.some((note) => note.includes("does not read file bodies")));
+  assert.ok(pack.notes.some((note) => note.includes("experiment narrative")));
   assert.ok(pack.summary.includes("Staged review"));
   assert.ok(pack.when_to_use.includes("staged review"));
+  assert.ok(pack.when_to_use.includes("code_audit"));
 });
 
 test("unknown pack_id is a clear error", () => {

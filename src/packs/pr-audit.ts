@@ -7,7 +7,7 @@ export const prAuditPack: PackDefinition = {
   summary:
     "Typed merge-risk judgment for a pull request. Staged review: risk Nouls (money/hours/boundary/migration) → closed-catalog file Choice from `files[]` in caller code → severity Score `blast_radius` (plus Choice `merge_risk`).",
   when_to_use:
-    "Before merging or auto-approving a PR when you need calibrated risk signals. Use as a staged review workflow: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Do not use Jev to write the review comment or to compute the final gate.",
+    "Before merging or auto-approving a PR when you need calibrated risk signals. Use as a staged review workflow: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Only for PR-shaped merge risk (title/body/files/diff_summary/flags) — not a repo-tree, architecture, or 'try Jev on these files' scan (use `code_audit`). Do not use Jev to write the review comment or to compute the final gate.",
   state_schema: {
     type: "object",
     additionalProperties: false,
@@ -132,8 +132,9 @@ export const prAuditPack: PackDefinition = {
     },
   ],
   suggested_workflow: [
-    "Collect title, body, changed paths, and a short diff_summary in code. Do not dump a full mega-diff into state.",
-    "Optionally set flags from path heuristics (billing/, migrations/, timesheet/) before the call.",
+    "Collect title, body, changed paths, and a short diff_summary in code. Do not dump a full mega-diff into state. Title/body/diff_summary describe the change — never the experiment narrative ('testing Jev', 'dogfood', 'try audit').",
+    "Keep files[] to the actual PR set. A ~40-path 'no signal' dump inflates needs_review/block — use a smaller batch or code_audit per-file for tree scans.",
+    "Flags: either match paths honestly (billing/ → touches_money, migrations/ → migration, timesheet/ → touches_hours) OR set all flags false to test path-only. Do not mix a test story with honest flags.",
     "Call list_packs / describe_pack once if you have not used pr_audit in this session, then run_pack.",
     "Stage in code: (1) risk Nouls — money, hours, hours_money_boundary, migration; (2) if you need a file-level follow-up, Choice among the closed `files[]` catalog you already passed (this pack does not invent paths); (3) severity via blast_radius.score. Read merge_risk.choice in the same snap.",
     "Compute code_gate in the caller. Jev does not return code_gate and must not be asked for it through this MCP.",
@@ -142,6 +143,10 @@ export const prAuditPack: PackDefinition = {
   notes: [
     "Staged review is caller-owned: risk Nouls → file Choice over `files[]` → severity Score. This pack already fans out the Nouls, merge_risk, and blast_radius in one systemOne call; compose the file Choice in your code from the same `files[]` list (closed catalog).",
     "code_gate is computed by the caller, not Jev. Example: block if merge_risk is block, or money.noul is high, or hours_money_boundary.noul is high, or migration.noul is high with blast_radius.score >= 2. Tune thresholds on your own data.",
+    "Not a repo-tree pack. `code_audit` is the file-list / architecture scan. This pack requires PR-shaped title/body/files/diff_summary.",
+    "Never put experiment narrative in title/body. Flags either match paths honestly or are all false for an explicit path-only test — pick one.",
+    "This pack does not read file bodies. Path tokens (budget, migration, finance, payroll) move money/migration Nouls. For content truth use a real diff_summary or `code_audit` Pass 2 excerpt.",
+    "Large path-only batches (~40 files) with no real diff inflate merge_risk toward needs_review/block. Prefer the actual PR file set or `code_audit` per-file.",
     "Noul answers have no separate confidence field — the probability is the belief.",
     "Choice and Score include probabilities plus confidence (how peaked the distribution is).",
   ],

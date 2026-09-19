@@ -3,7 +3,7 @@
 Model-universal skill for **mcp_jev** (TypeSafe Jev / System One packs).
 
 - Latest install: [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev)
-- This folder: [`SKILL.md`](./SKILL.md) · [`references/install.md`](./references/install.md)
+- This folder: [`SKILL.md`](./SKILL.md) · [`references/install.md`](./references/install.md) · [`references/pack-catalog.md`](./references/pack-catalog.md)
 
 ## Install the skill
 
@@ -27,6 +27,15 @@ mcp_jev doctor          # checkout, dist, wrapper, key boolean
 ```
 
 Then paste the printed MCP snippets (or `mcp_jev hosts write`) and restart the host.
+
+After `update.sh`, **re-add or copy this skill** — hosts do not auto-reload it:
+
+```bash
+npx skills add pedroknigge/mcp_jev --skill mcp_jev
+# or: cp -R skills/mcp_jev .cursor/skills/mcp_jev
+```
+
+`npm test` fails if a pack or question id is missing from `SKILL.md` / `references/pack-catalog.md`.
 
 **Say this to your agent:**  
 Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using the install script and skill.
