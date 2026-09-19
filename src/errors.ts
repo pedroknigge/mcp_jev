@@ -26,7 +26,7 @@ export type FriendlyError = {
 export function missingApiKeyError(): ToolError {
   return new ToolError(
     "missing_api_key",
-    "TYPESAFE_API_KEY is not set. Create a key in the TypeSafe dashboard (https://console.typesafe.ai) and add it to this MCP server's env. mcp_jev runs locally and never echoes the key.",
+    "TYPESAFE_API_KEY is not set. Create a key at https://console.typesafe.ai then run `mcp_jev config set-key` (stores ~/.mcp_jev/.env once). Host mcp.json should stay keyless. mcp_jev never echoes the key.",
   );
 }
 

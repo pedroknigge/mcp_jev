@@ -4,21 +4,84 @@ Local MCP server that runs **TypeSafe Jev** (System One) **packs** — typed **C
 
 Anyone runs it **on their own PC** with **their own** TypeSafe API key. This repo does not host Jev, proxy your key, or invent a free-form `ask_jev` tool.
 
-Jev is having a moment because it is actually a different interface: you send state and questions, you get numbers and labels your code can `if` on. Ride that — and stay honest. Side effects stay in the agent.
+**Configure the TypeSafe key once** during MCP install (`~/.mcp_jev/.env`). Any agent that attaches this MCP reuses it. Do **not** paste the key into Cursor / Claude / Codex / Grok `mcp.json`.
 
-**Docs (source of truth):** [https://docs.typesafe.ai](https://docs.typesafe.ai) · index: [llms.txt](https://docs.typesafe.ai/llms.txt)
+**Docs (source of truth):** this repo — [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) · TypeSafe API: [docs.typesafe.ai](https://docs.typesafe.ai) · [llms.txt](https://docs.typesafe.ai/llms.txt)
 
-Agent install deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md)
+Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md)
 
+- [Install (happy path)](#install-happy-path)
+- [Update](#update)
+- [Say this to your agent](#say-this-to-your-agent)
 - [Why this is not an LLM wrapper](#why-this-is-not-an-llm-wrapper)
-- [Prerequisites](#prerequisites)
-- [Install locally](#install-locally)
 - [Install for agents & IDEs](#install-for-agents--ides)
-- [Agent instructions](#agent-instructions)
 - [Tools](#tools-closed-catalog)
-- [Packs](#packs)
-- [Environment / security](#environment)
 - [Troubleshooting](#troubleshooting)
+
+## Install (happy path)
+
+**Prerequisites:** Node.js **20+**, git, a TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai).
+
+```bash
+# macOS / Linux — default checkout ~/mcp_jev (override: MCP_JEV_HOME)
+git clone https://github.com/pedroknigge/mcp_jev.git ~/mcp_jev
+~/mcp_jev/scripts/install.sh
+```
+
+```powershell
+# Windows
+git clone https://github.com/pedroknigge/mcp_jev.git $HOME\mcp_jev
+$HOME\mcp_jev\scripts\install.ps1
+```
+
+Already cloned (e.g. Pedro’s Desktop path `/Users/pedroknigge/Desktop/mcp_jev`)? Run `./scripts/install.sh` from that repo. `MCP_JEV_HOME` sets the checkout; `MCP_JEV_CONFIG` defaults to `~/.mcp_jev`.
+
+The script: clones or pulls → `npm install && npm run build` → writes `~/.mcp_jev/bin/mcp_jev` → stores `TYPESAFE_API_KEY` **once** in `~/.mcp_jev/.env` (chmod 600) → prints/copies the MCP JSON.
+
+Paste this **keyless** block (the script prints your real wrapper path):
+
+```json
+{
+  "mcpServers": {
+    "mcp_jev": {
+      "command": "/Users/YOU/.mcp_jev/bin/mcp_jev"
+    }
+  }
+}
+```
+
+Cursor: `~/.cursor/mcp.json` or `.cursor/mcp.json`  
+Claude Desktop: `claude_desktop_config.json` (paths below)  
+Then **restart the host** → `ping` → `list_packs`.
+
+Non-interactive key: `TYPESAFE_API_KEY=… ./scripts/install.sh`  
+Later: `node ~/mcp_jev/dist/index.js config set-key`
+
+### Alternatives
+
+| Style | When |
+| --- | --- |
+| **Install script (prefer this)** | Humans and agents. Key once, keyless host config. |
+| Git clone + manual build | `npm install && npm run build && npm test` in `REPO_PATH`. Then `node dist/index.js config set-key`. |
+| `npx -y github:pedroknigge/mcp_jev` | No clone. Slow first start. Still run `config set-key` so hosts stay keyless. |
+| `npx -y mcp_jev` | **Not on npm yet.** Future published bin (`mcp_jev` → `dist/index.js`). |
+
+`npm test` mocks TypeSafe and must pass without a live key.
+
+## Update
+
+```bash
+~/mcp_jev/scripts/update.sh          # git pull + npm install + build; keeps ~/.mcp_jev/.env
+# Windows: ~\mcp_jev\scripts\update.ps1
+```
+
+Restart the MCP host. That is the whole update.
+
+## Say this to your agent
+
+> Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using the install script and skill.
+
+Or: `npx skills add pedroknigge/mcp_jev --skill mcp_jev` then run `scripts/install.sh`, paste the printed JSON, restart, `ping` → `list_packs`.
 
 ## Why this is not an LLM wrapper
 
@@ -48,238 +111,89 @@ await client.systemOne({
 
 Python exists (`typesafe-sdk`, `client.system_one`) if you are writing app code. This server is TypeScript / Node 20+.
 
-## Prerequisites
-
-1. **Node.js 20+** (`node -v`). The package `engines` field is `>=20`.
-2. A **TypeSafe account and API key** from the [TypeSafe dashboard](https://console.typesafe.ai). Required only for `run_pack`. `list_packs`, `describe_pack`, and `ping` work without one.
-3. An MCP host that can spawn a **local stdio** server (Cursor, Claude Desktop/Code, Codex, Grok, Antigravity, Windsurf, Cline, Continue, Zed, …). This repo is not an HTTP service.
-
-## Install locally
-
-Use a placeholder path. Replace `REPO_PATH` everywhere.
-
-```bash
-# Example only (Pedro's typical Desktop checkout):
-#   REPO_PATH=/Users/pedroknigge/Desktop/mcp_jev
-export REPO_PATH="$HOME/src/mcp_jev"
-
-git clone https://github.com/pedroknigge/mcp_jev.git "$REPO_PATH"
-cd "$REPO_PATH"
-npm install
-npm run build
-npm test
-```
-
-`npm test` mocks TypeSafe. It must pass without `TYPESAFE_API_KEY`. Do not call the live API unless you have a key and intend to.
-
-The server **does not load `.env` files**. Copy `.env.example` → `.env` only as a reminder for your shell:
-
-```bash
-cp .env.example .env
-# edit TYPESAFE_API_KEY, then:
-set -a && source .env && set +a
-```
-
-MCP hosts must put the key in the server's **`env` block**. A key sitting in `.env` or your login shell is invisible to Cursor/Claude/Codex unless you copy it into the host config.
-
-### Dev vs `npx`
-
-| How you run it | Command | When |
-| --- | --- | --- |
-| Built clone (preferred) | `node "$REPO_PATH/dist/index.js"` | Everyday host config. Fast, no download. |
-| TypeScript in this repo | `npx tsx src/index.ts` | Local hacking only. |
-| npm scripts after build | `npm start` | Same as `node dist/index.js`. |
-| Git via npx | `npx -y github:pedroknigge/mcp_jev` | No clone. First launch fetches + runs `prepare` (`tsc`). Hosts may need a longer startup timeout. |
-| Published package | `npx -y mcp_jev` | **Not on the public npm registry yet.** Use this stanza once it is. |
-
-`npx` / `node dist/index.js` speak **stdio** MCP. Do not `console.log` at stdout. Bin name in `package.json`: **`mcp_jev`** → `dist/index.js`.
-
 ## Install for agents & IDEs
 
-Same stdio server, different config files. After you paste a stanza, **restart the host** (Claude Desktop: full quit, not just the window). Then the agent should `ping` then `list_packs`.
+**Easiest path:** install script → one keyless `command` pointing at `~/.mcp_jev/bin/mcp_jev` → restart → `ping`. Other hosts below; full stanzas in [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md).
 
-Generic shape most JSON hosts accept:
+The server reads `TYPESAFE_API_KEY` from **`~/.mcp_jev/.env` first via the wrapper / `loadConfig`**, and only needs a host `env` block if you override it. Process env wins over the store when both exist.
+
+Generic JSON (most hosts):
 
 ```json
 {
   "mcpServers": {
     "mcp_jev": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp_jev/dist/index.js"],
-      "env": {
-        "TYPESAFE_API_KEY": "YOUR_KEY"
-      }
+      "command": "/absolute/path/to/.mcp_jev/bin/mcp_jev"
     }
   }
 }
 ```
 
-Use an **absolute** path. Relative `args` break when the host's cwd is not the repo.
+Windows wrapper: `%USERPROFILE%\.mcp_jev\bin\mcp_jev.cmd`.
 
 ### Cursor
 
-Project (this workspace only): `.cursor/mcp.json`  
-User (all projects): `~/.cursor/mcp.json`  
-Merged; **project wins** on the same server name.
-
-Local clone:
+Project: `.cursor/mcp.json` · User: `~/.cursor/mcp.json` (project wins on name clash).
 
 ```json
 {
   "mcpServers": {
     "mcp_jev": {
-      "command": "node",
-      "args": ["/Users/pedroknigge/Desktop/mcp_jev/dist/index.js"],
-      "env": {
-        "TYPESAFE_API_KEY": "YOUR_KEY"
-      }
+      "command": "/Users/pedroknigge/.mcp_jev/bin/mcp_jev"
     }
   }
 }
 ```
 
-Replace that Desktop path with your `REPO_PATH`. Git / future npm:
-
-```json
-{
-  "mcpServers": {
-    "mcp_jev": {
-      "command": "npx",
-      "args": ["-y", "github:pedroknigge/mcp_jev"],
-      "env": {
-        "TYPESAFE_API_KEY": "YOUR_KEY"
-      }
-    }
-  }
-}
-```
-
-When the package is on npm, swap the args for `["-y", "mcp_jev"]`. Optional: `TYPESAFE_BASE_URL`, `JEV_MODEL` (default `jev-latest`; the SDK also reads `TYPESAFE_DEFAULT_MODEL`).
-
-Install the skill so the model does not treat Jev like ChatGPT:
-
-```bash
-mkdir -p .cursor/skills
-cp -R skills/mcp_jev .cursor/skills/mcp_jev
-# or user-wide: cp -R skills/mcp_jev ~/.cursor/skills/mcp_jev
-```
-
-`npx skills add pedroknigge/mcp_jev --skill mcp_jev` — see [skills/mcp_jev/README.md](skills/mcp_jev/README.md).
+Skill: `npx skills add pedroknigge/mcp_jev --skill mcp_jev` or `cp -R skills/mcp_jev .cursor/skills/mcp_jev`.
 
 ### Claude Desktop
 
-Edit via **Settings → Developer → Edit Config**, then fully quit and reopen.
+Settings → Developer → Edit Config, then **fully quit**.
 
-| OS | `claude_desktop_config.json` |
+| OS | File |
 | --- | --- |
 | macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
 | Linux | `~/.config/Claude/claude_desktop_config.json` |
 | Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
 
-```json
-{
-  "mcpServers": {
-    "mcp_jev": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp_jev/dist/index.js"],
-      "env": {
-        "TYPESAFE_API_KEY": "YOUR_KEY"
-      }
-    }
-  }
-}
-```
-
-On Windows, if `npx` is not a real executable, wrap it: `"command": "cmd", "args": ["/c", "npx", "-y", "github:pedroknigge/mcp_jev"]`.
+Same keyless `mcpServers` JSON as Cursor.
 
 ### Claude Code
 
-CLI (stdio). Put `--` before the server command. Do not put the server name immediately after `--env`.
-
 ```bash
-claude mcp add --scope user --env TYPESAFE_API_KEY=YOUR_KEY --transport stdio mcp_jev \
-  -- node /absolute/path/to/mcp_jev/dist/index.js
+claude mcp add --scope user --transport stdio mcp_jev -- /Users/YOU/.mcp_jev/bin/mcp_jev
 ```
 
-Project-shared file: `.mcp.json` (same `mcpServers` JSON as Cursor). Verify: `claude mcp list`. Skill:
+Skill: `npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy to `.claude/skills/mcp_jev`.
 
-```bash
-mkdir -p .claude/skills
-cp -R skills/mcp_jev .claude/skills/mcp_jev
-# or: npx skills add pedroknigge/mcp_jev --skill mcp_jev
-```
+### OpenAI Codex
 
-### OpenAI Codex (CLI / IDE / ChatGPT desktop Codex host)
-
-Codex stores MCP in **TOML**, not JSON. User: `~/.codex/config.toml`. Project (trusted repos): `.codex/config.toml`. The CLI, IDE extension, and ChatGPT desktop Codex host share this file.
-
-```bash
-codex mcp add mcp_jev --env TYPESAFE_API_KEY=YOUR_KEY \
-  -- node /absolute/path/to/mcp_jev/dist/index.js
-```
+TOML, not JSON. `~/.codex/config.toml` or `.codex/config.toml`:
 
 ```toml
 [mcp_servers.mcp_jev]
-command = "node"
-args = ["/absolute/path/to/mcp_jev/dist/index.js"]
-
-[mcp_servers.mcp_jev.env]
-TYPESAFE_API_KEY = "YOUR_KEY"
+command = "/Users/YOU/.mcp_jev/bin/mcp_jev"
 ```
 
-If you only have a JSON `mcpServers` block, paste it into hosts that speak JSON. For Codex, convert to the TOML above (key is `mcp_servers`, underscore). `npx` first-run may need `startup_timeout_sec = 60`.
+Or `codex mcp add mcp_jev -- /Users/YOU/.mcp_jev/bin/mcp_jev`. If you only have JSON, paste the generic block into JSON hosts.
 
-### Grok / xAI agent hosts
+### Grok / xAI
 
-[xAI MCP docs](https://docs.x.ai/build/features/mcp-servers): `~/.grok/config.toml` or project `.grok/config.toml`. CLI: `grok mcp add`. Grok can also merge `.cursor/mcp.json` / `.mcp.json`; `~/.grok/config.toml` still wins.
-
-```toml
-[mcp_servers.mcp_jev]
-command = "node"
-args = ["/absolute/path/to/mcp_jev/dist/index.js"]
-startup_timeout_sec = 30
-
-[mcp_servers.mcp_jev.env]
-TYPESAFE_API_KEY = "${TYPESAFE_API_KEY}"
-```
-
-`${VAR}` expands at load time — keep the real key out of the file when your environment already has it. Other xAI/Grok surfaces that only take JSON: use the generic `mcpServers` stdio block at the top of this section.
+`~/.grok/config.toml` / `grok mcp add mcp_jev -- ~/.mcp_jev/bin/mcp_jev`. Same TOML table `[mcp_servers.mcp_jev]`. JSON hosts: generic `mcpServers` block.
 
 ### Google Antigravity
 
-Antigravity **does** speak MCP. Custom stdio servers go in:
-
-- Global: `~/.gemini/config/mcp_config.json`
-- Workspace: `.agents/mcp_config.json`
-
-UI: agent panel **… → MCP Servers → Manage MCP Servers → View raw config**.
-
-```json
-{
-  "mcpServers": {
-    "mcp_jev": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp_jev/dist/index.js"],
-      "env": {
-        "TYPESAFE_API_KEY": "YOUR_KEY"
-      }
-    }
-  }
-}
-```
-
-Also copy the skill (`skills/mcp_jev`) into the workspace skills directory the agent reads (often `.agents/skills` or `.gemini/skills`). If a given Antigravity surface will not spawn stdio, the fallback is still: run this server from any MCP host + follow the skill (`list_packs` → `describe_pack` → `run_pack`). Do not invent HTTP endpoints; this package is stdio-only.
+`~/.gemini/config/mcp_config.json` or `.agents/mcp_config.json` — generic JSON, `command` = wrapper. UI: … → MCP Servers → View raw config. Skill fallback if a surface cannot spawn stdio.
 
 ### Windsurf / Cline / Continue / Zed
 
-Same server; different files. Full stanzas: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md).
-
-| Host | Where | Root key |
+| Host | File | Note |
 | --- | --- | --- |
-| **Windsurf** | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` (stdio: `command` / `args` / `env`) |
-| **Cline** | IDE: MCP Servers → Configure. File is often `cline_mcp_settings.json` under VS Code `globalStorage/saoudrizwan.claude-dev`. CLI: `~/.cline/mcp.json` | `mcpServers` |
-| **Continue** | `~/.continue/config.yaml` or `.continue/mcpServers/*.yaml` (JSON from Cursor also works in that folder) | YAML `mcpServers:` list with `command` / `args` / `env` |
-| **Zed** | Settings → AI → MCP Servers, or `~/.config/zed/settings.json` | **`context_servers`**, not `mcpServers` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` + wrapper `command` |
+| Cline | MCP panel → Configure; often `cline_mcp_settings.json` or `~/.cline/mcp.json` | `mcpServers` |
+| Continue | `.continue/mcpServers/*.yaml` or JSON in that folder | `command: ~/.mcp_jev/bin/mcp_jev` |
+| Zed | `~/.config/zed/settings.json` | **`context_servers`**, not `mcpServers` |
 
 Zed:
 
@@ -287,11 +201,7 @@ Zed:
 {
   "context_servers": {
     "mcp_jev": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp_jev/dist/index.js"],
-      "env": {
-        "TYPESAFE_API_KEY": "YOUR_KEY"
-      }
+      "command": "/Users/YOU/.mcp_jev/bin/mcp_jev"
     }
   }
 }
@@ -299,13 +209,11 @@ Zed:
 
 ## Agent instructions
 
-Paste this into any agent that can see the MCP tools:
-
-> You have **mcp_jev**, a local MCP server for TypeSafe **Jev** (System One) packs. Jev is **not** an LLM chat model. There is no `ask_jev` tool.
+> You have **mcp_jev** (or you must install it from https://github.com/pedroknigge/mcp_jev). Jev is **not** chat. No `ask_jev`.
 >
-> Always: `list_packs` → `describe_pack` → collect short named state in code → `run_pack` `{ pack_id, state }`. Never invent free-form questions, endpoints, or answer fields.
+> If the MCP tools are missing: tell the user to run `scripts/install.sh` (or `install.ps1`) from that repo, paste the printed JSON, set the key once (`config set-key` / install prompt), restart the host.
 >
-> Side effects (merge, comment, refund, catalogue write, refuse) stay in **your** code or other tools. Do not put `TYPESAFE_API_KEY` in chat. If `ping` shows `api_key_set: false`, stop and tell the human to set the key in the MCP `env` block. If `run_pack` returns `invalid_state`, re-read `describe_pack` — do not guess extra fields.
+> Always: `list_packs` → `describe_pack` → `run_pack`. Side effects stay in **your** code. Never put `TYPESAFE_API_KEY` in chat. If `ping.api_key_set` is false, run `mcp_jev config set-key` — do not embed the key in every host config.
 
 ## Tools (closed catalog)
 
@@ -313,22 +221,20 @@ Paste this into any agent that can see the MCP tools:
 | --- | --- | --- |
 | `list_packs` | none | `id`, `version`, `title`, `summary`, `when_to_use` |
 | `describe_pack` | `pack_id` | JSON Schema, questions, `example_state`, `suggested_workflow`, `notes` |
-| `run_pack` | `pack_id`, `state` | Validates state, calls TypeSafe `systemOne`, returns typed answers + usage. Errors if the key is missing. **No side effects.** |
-| `ping` | none | Server + SDK versions, pack count, `api_key_set`, model. **Never** echoes the key |
+| `run_pack` | `pack_id`, `state` | Validates state, calls TypeSafe `systemOne`, returns typed answers + usage. **No side effects.** |
+| `ping` | none | Versions, pack count, `api_key_set`, `api_key_source` (`env` \| `user_store` \| `none`). **Never** echoes the key |
 
-There is **no** free-form ask tool. Agents: `list_packs` → `describe_pack` → `run_pack`.
-
-`list_packs` / `describe_pack` / `ping` never call TypeSafe. Only `run_pack` does.
+There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` never call TypeSafe. Only `run_pack` does.
 
 ## Packs
 
 | id | What Jev judges | What **you** still do |
 | --- | --- | --- |
-| `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Compute **`code_gate`** in the caller. Jev does not merge or comment |
+| `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Compute **`code_gate`**. Jev does not merge or comment |
 | `intent_router` | Closed intent Choice, jailbreak + policy Nouls, urgency Score | Route / refuse / hand off in code |
 | `locale_country` | Catalogue item → Argentina \| USA \| India \| Uruguay \| Saudi Arabia (or `unclear`) | Write the country to your catalogue |
 
-Packs live in `src/packs/` and ship in this repo. New packs are added in-repo (see [CONTRIBUTING.md](CONTRIBUTING.md)) — they are not fetched from TypeSafe.
+Packs live in `src/packs/` (in-repo). How to add one: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Architecture
 
@@ -349,42 +255,48 @@ flowchart LR
 
 | Variable | Required | Default |
 | --- | --- | --- |
-| `TYPESAFE_API_KEY` | Yes, for `run_pack` | — |
+| `TYPESAFE_API_KEY` | Yes, for `run_pack` | From `~/.mcp_jev/.env` after install |
 | `TYPESAFE_BASE_URL` | No | SDK: `https://api.typesafe.ai` |
 | `JEV_MODEL` | No | `jev-latest` |
 | `TYPESAFE_DEFAULT_MODEL` | No | Used if `JEV_MODEL` is unset |
+| `MCP_JEV_HOME` | No | `~/mcp_jev` (checkout) |
+| `MCP_JEV_CONFIG` | No | `~/.mcp_jev` (key + wrapper) |
 
-See `.env.example`. Not auto-loaded.
+Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. Process env overrides the store.
+
+CLI: `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
 
 ## Security
 
-- The key stays in **your** process environment. This server does not log it, return it from `ping`, or send it anywhere except the TypeSafe API (via the official SDK).
-- Put the key in the host `env` block or a local secret store. Do not commit `.env`, `.cursor/mcp.json` with a real key, or paste the key into chat.
+- Key lives in **`~/.mcp_jev/.env` (0600)** or a process override. Never in git, chat, or host JSON.
+- `ping` / `config status` never print the key.
+- `scripts/update.sh` does not overwrite the key file.
 - Run locally. Do not deploy this stdio binary as a public HTTP proxy.
-- Pack state can contain tickets, diffs, and catalogue copy — treat it as sensitive. Keep diffs summarized.
+- Pack state can contain tickets and diffs — keep diffs summarized.
 - MIT licensed. Jev / TypeSafe are products of TypeSafe; this project is an independent open-source client.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 | --- | --- |
-| `ping` → `api_key_set: false` | The MCP **process** does not have `TYPESAFE_API_KEY`. Add it to the host `env` block (not only `.env`). Restart the host. Whitespace-only counts as missing. |
-| `run_pack` → `missing_api_key` | Same as above. Do not fabricate answers. |
-| `run_pack` → `auth` | Key rejected (HTTP 401). Rotate it in the TypeSafe dashboard. |
-| `invalid_state` / pack validation | State does not match the pack JSON Schema. Call `describe_pack`, use `example_state` as a shape, do not invent fields (`additionalProperties` is false on starter packs). |
+| `ping` → `api_key_set: false` | Run `node $MCP_JEV_HOME/dist/index.js config set-key`. Confirm `~/.mcp_jev/.env` exists. Restart the host. |
+| `run_pack` → `missing_api_key` | Same. Do not fabricate answers. |
+| `run_pack` → `auth` | Key rejected (HTTP 401). Rotate at the TypeSafe dashboard, then `config set-key`. |
+| `invalid_state` | Re-read `describe_pack`. Starter packs reject extra fields. |
 | `unknown_pack` | `list_packs`. There is no `ask_jev`. |
-| Wrong Node | `node -v` must be 20+. nvm/fnm hosts often spawn a different Node than your terminal. |
-| stdio pollution / server "fails to start" | Something wrote non-JSON to **stdout**. This server only logs to stderr. Do not wrap it in a script that `echo`s. |
-| `npx` hangs or host times out | First git/npm fetch is slow. Prefer `node $REPO_PATH/dist/index.js`, or raise `startup_timeout_sec` (Codex / Grok). |
-| `npx mcp_jev` 404 | Package is **not on npm yet**. Use a clone or `npx -y github:pedroknigge/mcp_jev`. |
+| Wrong Node | `node -v` must be 20+. GUI hosts may not see nvm. |
+| stdio pollution | Wrapper and server must not write to **stdout**. |
+| `npx mcp_jev` 404 | Not on npm yet. Use the install script or `npx -y github:pedroknigge/mcp_jev`. |
 
 ## Scripts
 
 ```bash
-npm run build        # tsc → dist/
-npm start            # node dist/index.js
-npm run typecheck
+./scripts/install.sh     # happy path
+./scripts/update.sh
+npm run build            # tsc → dist/
+npm start                # node dist/index.js (MCP stdio)
 npm test
+npm run typecheck
 ```
 
 ## License

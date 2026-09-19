@@ -14,7 +14,8 @@
     "README.md",
     "LICENSE",
     "CONTRIBUTING.md",
-    ".env.example"
+    ".env.example",
+    "scripts"
   ],
   "scripts": {
     "build": "tsc",

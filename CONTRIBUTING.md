@@ -4,7 +4,7 @@ mcp_jev is a small, local MCP server. Keep the surface closed: **no free-form `a
 
 Live TypeSafe docs are the source of truth for the API: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Do not invent request or response fields.
 
-This repo is the source of truth for **how agents install and call** the four tools: [README.md](README.md) (Install for agents & IDEs), [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md), and [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md). If you add a pack or a tool, update those three.
+This repo is the source of truth for **how agents install and call** the four tools: [README.md](README.md), [scripts/install.sh](scripts/install.sh), [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md), and [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md). If you add a pack or a tool, update those. Keep `./scripts/install.sh` / `update.sh` as the happy path; do not require the TypeSafe key in every host `mcp.json`.
 
 ## Setup
 
