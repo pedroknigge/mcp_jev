@@ -34,6 +34,7 @@ mcp_jev doctor
 
 # 3) Optional stdio smoke (no TypeSafe call)
 ~/mcp_jev/scripts/verify-mcp.sh
+# After install, agents can run: npm run smoke:packs
 
 # 4) On the MCP host after restart:
 #    ping → list_packs → describe_pack → run_pack

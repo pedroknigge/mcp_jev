@@ -22,3 +22,7 @@ jobs:
         run: bash scripts/verify-mcp.sh
         env:
           TYPESAFE_API_KEY: ""
+      - name: smoke all packs (mocked TypeSafe)
+        run: npm run smoke:packs
+        env:
+          TYPESAFE_API_KEY: ""
