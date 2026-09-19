@@ -2,12 +2,12 @@ import type { PackDefinition } from "./types.js";
 
 export const prAuditPack: PackDefinition = {
   id: "pr_audit",
-  version: "1.0.0",
-  title: "PR audit",
+  version: "1.1.0",
+  title: "PR audit (domain example)",
   summary:
-    "Typed merge-risk judgment for a pull request. Staged review: risk Nouls (money/hours/boundary/migration) → closed-catalog file Choice from `files[]` in caller code → severity Score `blast_radius` (plus Choice `merge_risk`).",
+    "Domain example pack for money / labor-hours / migration merge risk (common in ops and fintech) — not the universal PR pack. Staged review: risk Nouls (money/hours/boundary/migration) → closed-catalog file Choice from `files[]` in caller code → severity Score `blast_radius` (plus Choice `merge_risk`). Generic PR/diff review is `review_diff`; repo trees are `code_audit`.",
   when_to_use:
-    "Before merging or auto-approving a PR when you need calibrated risk signals. Use as a staged review workflow: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Only for PR-shaped merge risk (title/body/files/diff_summary/flags) — not a repo-tree, architecture, or 'try Jev on these files' scan (use `code_audit`). Do not use Jev to write the review comment or to compute the final gate.",
+    "When the change is framed as money, labor-hours, or schema/data-migration merge risk and you already have PR-shaped state (title/body/files/diff_summary/flags). Not the default PR pack: use `review_diff` for generic diff review and `code_audit` for repo-tree / architecture / file-list scans. Use as a staged review: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Do not use Jev to write the review comment or to compute the final gate.",
   state_schema: {
     type: "object",
     additionalProperties: false,
@@ -75,7 +75,7 @@ export const prAuditPack: PackDefinition = {
         needs_review:
           "Behavior or logic change that a human should review, but it is not an automatic block on its own.",
         block:
-          "High-risk change that should not merge without explicit human approval: money, hours-to-pay, irreversible migration, security, or likely data loss.",
+          "High-risk change that should not merge without explicit human approval: money, labor hours, irreversible migration, security, or likely data loss.",
       },
     },
     {
@@ -92,7 +92,7 @@ export const prAuditPack: PackDefinition = {
       type: "noul",
       id: "hours",
       instructions:
-        "Does this change affect tracked hours, time entries, timesheets, attendance, or labor hours? Use `flags.touches_hours`, `title`, `body`, `files`, and `diff_summary`.",
+        "Does this change affect tracked hours, time entries, timesheets, attendance, or labor-hour totals? Use `flags.touches_hours`, `title`, `body`, `files`, and `diff_summary`.",
       criteria: {
         true: "The change reads, writes, or redefines how hours are captured or aggregated.",
         false: "Hours are not part of the behavior change.",
@@ -102,7 +102,7 @@ export const prAuditPack: PackDefinition = {
       type: "noul",
       id: "hours_money_boundary",
       instructions:
-        "Does this change sit on the boundary between hours and money — converting time to pay, billing hours, overtime, cost rates, or mixing labor and charges? Use `flags`, `title`, `body`, `files`, and `diff_summary`.",
+        "Does this change sit on the boundary between hours and money — converting time to pay, billing hours, overtime, cost rates, or mixing labor time and charges? Use `flags`, `title`, `body`, `files`, and `diff_summary`.",
       criteria: {
         true: "Hours are used to compute money, or money rules change how hours are valued.",
         false: "Hours and money, if present at all, stay in separate concerns.",
@@ -143,7 +143,7 @@ export const prAuditPack: PackDefinition = {
   notes: [
     "Staged review is caller-owned: risk Nouls → file Choice over `files[]` → severity Score. This pack already fans out the Nouls, merge_risk, and blast_radius in one systemOne call; compose the file Choice in your code from the same `files[]` list (closed catalog).",
     "code_gate is computed by the caller, not Jev. Example: block if merge_risk is block, or money.noul is high, or hours_money_boundary.noul is high, or migration.noul is high with blast_radius.score >= 2. Tune thresholds on your own data.",
-    "Not a repo-tree pack. `code_audit` is the file-list / architecture scan. This pack requires PR-shaped title/body/files/diff_summary.",
+    "Domain example, not the universal PR pack. Keep this id. Generic diff review is `review_diff`; repo-tree / architecture / file-list scans are `code_audit`. This pack requires PR-shaped title/body/files/diff_summary.",
     "Never put experiment narrative in title/body. Flags either match paths honestly or are all false for an explicit path-only test — pick one.",
     "This pack does not read file bodies. Path tokens (budget, migration, finance, payroll) move money/migration Nouls. For content truth use a real diff_summary or `code_audit` Pass 2 excerpt.",
     "Large path-only batches (~40 files) with no real diff inflate merge_risk toward needs_review/block. Prefer the actual PR file set or `code_audit` per-file.",

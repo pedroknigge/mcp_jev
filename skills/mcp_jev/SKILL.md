@@ -77,7 +77,7 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
-| A judgment that exists as a pack (`pr_audit`, `review_diff`, `code_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, or later in-repo ids) | **mcp_jev** tools |
+| A judgment that exists as a pack (`review_diff`, `code_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** tools |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
@@ -95,10 +95,10 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Structured screen state (OCR / AX / DOM ids) → one next click/type/scroll/wait/done | `computer_use_step` | Do not send screenshots. Do not use `intent_router` (utterances) or `model_router` (compute lanes). |
 | Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
 | Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
-| Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | Orchestration stays in the caller. Not `pr_audit` (money/hours/migration). |
+| Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | **Start here for ordinary PR/diff review.** Orchestration stays in the caller. Not `pr_audit` (domain example). |
 | Repo tree / architecture / "try or audit Jev on these files" | `code_audit` via `mcp_jev scan` | Pass 1 signals-only (~RTT, N workers). **`pr_audit` is not the only file-list pack.** |
-| PR-shaped merge risk only: `title` / `body` / `files` / `diff_summary` / optional `flags` | `pr_audit` | Not a tree scan. Jev does not write the review or compute `code_gate`. |
-| Catalogue SKU → one of five countries | `locale_country` | Not a geocoder for people or addresses. |
+| Domain example — money / labor-hours / migration, PR-shaped merge risk only: `title` / `body` / `files` / `diff_summary` / optional `flags` | `pr_audit` | Not the universal PR pack. Not a tree scan. Jev does not write the review or compute `code_gate`. |
+| Catalogue / SKU → one country from the caller’s closed `countries[]` list | `locale_country` | Not a geocoder for people or addresses. No built-in country list. |
 | Closed skill names → load one or none | `skill_router` | Not a model lane. Not a GUI step. |
 | Proposed shell command → risk signals | `command_risk` | Not an allowlist. Sandbox still required. |
 
@@ -134,11 +134,11 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → treat as `ask_u
 3. Read Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`, then `hotspot_file.choice` (only from `files[]`), then `severity.score`.
 4. Compose the gate and any comment **in the caller**. Example: request review if any Noul ≥ 0.65; block if `security.noul ≥ 0.75` or `severity.score ≥ 2.5`.
 
-`pr_audit` is the separate money/hours/migration merge pack. Keep both ids.
+`pr_audit` is a **domain example** pack (money / labor-hours / migration merge risk). Keep both ids. General users should use this pack (`review_diff`) or `code_audit`, not `pr_audit`, unless the change is that domain.
 
 ## Recipe: `pr_audit`
 
-**Only for a PR-shaped merge.** Required state: `title`, `body`, `files`, `diff_summary`. Optional `flags.touches_money` / `touches_hours` / `migration`. If the user says try/audit Jev on a repo tree, architecture, or file list, use **`code_audit`** — do not reach for `pr_audit` just because you have paths.
+**Domain example pack** (money / labor-hours / migration). **Only for a PR-shaped merge.** Required state: `title`, `body`, `files`, `diff_summary`. Optional `flags.touches_money` / `touches_hours` / `migration`. If the user says try/audit Jev on a repo tree, architecture, or file list, use **`code_audit`** — do not reach for `pr_audit` just because you have paths. For ordinary diffs use **`review_diff`**.
 
 1. `title` / `body` / `diff_summary` describe **the change**, not the experiment. Never put "testing Jev", "dogfood", or "try audit" narrative in those fields.
 2. Keep `files[]` to the actual PR set. A ~40-path "no signal" dump inflates `merge_risk` toward `needs_review` / `block`. Smaller batches, or `code_audit` per-file for tree scans.
@@ -149,11 +149,20 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → treat as `ask_u
 4. `run_pack` `pr_audit`. Read Nouls `money` / `hours` / `hours_money_boundary` / `migration`, Choice `merge_risk` (`safe_ui` \| `needs_review` \| `block`), Score `blast_radius`. Compute **`code_gate` in the caller**.
 5. **Path false positives:** this pack does **not** read file bodies. Tokens in paths (`budget`, `migration`, `finance`, `payroll`) move money/migration Nouls even when the file is a comment or a fixture. For content truth use a real `diff_summary` or `code_audit` Pass 2 `excerpt` (≤1200).
 
+## Recipe: `locale_country`
+
+Pass **your** closed `countries[]` catalog (ids you will accept — slugs or ISO-style codes) plus the item `name`. Optional `description` and `hints`. This pack does **not** ship a built-in country list.
+
+1. Collect `name`, optional `description` / `hints`, and `countries` (at least one id).
+2. `run_pack` `locale_country`. Choice `country` options are exactly those ids plus `unclear`.
+3. Read Noul `explicit_geo_cue` and Score `locale_signal`. If `country` is `unclear`, confidence is low, or `locale_signal` is below 2, leave the item unfiled.
+4. Write the country in **your** store. Not a geocoder for people or addresses.
+
 ## Recipe: `code_audit`
 
 Millisecond-tier. **~network RTT per file; parallelize N workers.** Not a multi-second LLM review. Do not send the monorepo as prose.
 
-**This is the file-list pack.** Repo tree / architecture / "try Jev on these files" → Pass 1 here. `pr_audit` is PR-shaped merge risk only.
+**This is the file-list pack.** Repo tree / architecture / "try Jev on these files" → Pass 1 here. `pr_audit` is a domain example for PR-shaped merge risk only.
 
 **Pass 1 (default, all files):** list files → filter screenshots/binaries/generated vendor dirs → `run_pack` `code_audit` with signals-only state → aggregate top `problem_severity` / most frequent Nouls.
 
@@ -293,9 +302,9 @@ Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New p
 
 | id | State (exact keys) | Jev answers (exact ids) | Caller still does |
 | --- | --- | --- | --- |
-| `pr_audit` | required `title`, `body`, `files`, `diff_summary`; optional `flags.touches_money`, `flags.touches_hours`, `flags.migration` | Choice `merge_risk` (`safe_ui` \| `needs_review` \| `block`); Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. |
+| `pr_audit` | required `title`, `body`, `files`, `diff_summary`; optional `flags.touches_money`, `flags.touches_hours`, `flags.migration` | Choice `merge_risk` (`safe_ui` \| `needs_review` \| `block`); Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | **Domain example** (ops/fintech money/hours/migration). Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. Prefer `review_diff` / `code_audit` first. |
 | `intent_router` | required `message`; optional `channel`, `user_role`, `locale` | Choice `intent` (`faq` \| `action` \| `handoff` \| `smalltalk` \| `other`); Nouls `jailbreak` / `policy_violation`; Score `urgency` | Route / refuse in code. |
-| `locale_country` | required `name`; optional `description`, `hints` | Choice `country` (`argentina` \| `usa` \| `india` \| `uruguay` \| `saudi_arabia` \| `unclear`); Noul `explicit_geo_cue`; Score `locale_signal` | Write the catalogue yourself. |
+| `locale_country` | required `name`, `countries[]`; optional `description`, `hints` | Choice `country` (caller `countries[]` ids plus `unclear`); Noul `explicit_geo_cue`; Score `locale_signal` | Pass your own closed country list. Write the catalogue yourself. |
 | `computer_use_step` | required `goal`, `app_or_url`, `observation_summary`, `items[]` (`id`,`role`,`label` + optional `name`,`value`,`state`,`region`,`source`); optional `focused_field`, `offscreen_items[]`, `history[]` (`action`,`target`,`result`), `flags.modal_open` / `loading` / `login_required` / `keyboard_visible` / `irreversible_ahead` | Choice `operation` (`click_item` \| `type_text` \| `type_email` \| `press_enter` \| `press_escape` \| `scroll_up` \| `scroll_down` \| `use_browser` \| `press_offscreen` \| `wait` \| `done` \| `none`); Choices `click_target` / `type_target` / `offscreen_target` (from catalogs); Nouls `goal_achieved` / `observation_stale`; Score `step_confidence`; additive `guidance` | Observe, click/type/scroll, writer LLM for text, stop. No screenshots in state. |
 | `model_router` | required `user_request`; optional `agent_so_far`, `available_tools`, `files_in_scope`, `last_error`, `flags.has_uncommitted_diff` / `prior_tool_failure` / `user_waiting` | Choice `route` (`fast_local` \| `strong_reasoner` \| `tools_heavy` \| `ask_user` \| `skip`); Nouls `needs_code_edit` / `needs_browser` / `unsafe_or_irreversible` / `simple_lookup`; Score `difficulty` | Map the lane. Thresholds in your code. |
 | `review_diff` | required `diff_summary`, `files`; optional `title`, `intent`, `flags.touches_auth` / `touches_public_api` / `missing_tests_heuristic` | Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`; Choice `hotspot_file` (from `files[]`); Score `severity` | Gate and comments in caller code. |

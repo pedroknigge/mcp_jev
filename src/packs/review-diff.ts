@@ -102,7 +102,7 @@ export const reviewDiffPack: PackDefinition = {
   summary:
     "Staged diff review: Nouls correctness / security / reliability / compat / test_gap, Choice hotspot_file from the closed files[] catalog, Score severity. Orchestration stays in the caller.",
   when_to_use:
-    "When you already have a short diff summary and a closed list of changed paths and need typed review risks — not a written review comment. Compose gates in your code. Prefer this over `pr_audit` when the change is not framed as a money/hours/migration merge. Do not use Jev to post comments or compute the final gate.",
+    "Default pack for generic PR/diff review when you already have a short diff summary and a closed list of changed paths — not a written review comment. Compose gates in your code. Prefer this over `pr_audit` (a domain example for money/hours/migration merge risk). Do not use Jev to post comments or compute the final gate.",
   state_schema: {
     type: "object",
     additionalProperties: false,
@@ -173,6 +173,6 @@ export const reviewDiffPack: PackDefinition = {
     "Staged review is caller-owned: risk Nouls → hotspot_file Choice over files[] → severity Score. This pack fans them out in one systemOne call.",
     "hotspot_file options are the closed files[] catalog plus none. The MCP does not invent paths.",
     "Thresholds live in caller code. Example: request review if any Noul ≥ 0.65; block if security.noul ≥ 0.75 or severity.score ≥ 2.5; open hotspot_file when it is not none.",
-    "code_gate / comments / merges stay in the caller. Distinct from pr_audit (money/hours/migration merge risk).",
+    "code_gate / comments / merges stay in the caller. Distinct from pr_audit (domain example: money/hours/migration merge risk).",
   ],
 };

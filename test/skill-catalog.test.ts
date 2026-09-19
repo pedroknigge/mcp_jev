@@ -87,6 +87,21 @@ test("SKILL.md routes tree scans to code_audit and documents pr_audit pitfalls",
   assert.match(skill, /Recipe: Full repo scan/);
   assert.match(skill, /mcp_jev scan/);
   assert.match(skill, /Tree → `code_audit`/);
+  assert.match(skill, /[Dd]omain example/);
+  assert.match(skill, /Prefer `review_diff` \/ `code_audit` first/);
+  assert.match(skill, /caller’s closed `countries\[\]`/);
+  assert.doesNotMatch(skill, /argentina|uruguay|saudi_arabia|one of five countries/i);
+});
+
+test("docs do not pitch a fixed five-country or one-product story", () => {
+  const readme = read("README.md");
+  const skill = read("skills/mcp_jev/SKILL.md");
+  assert.match(readme, /Breaking \(`locale_country` 2\.0\.0\)/);
+  assert.match(readme, /caller’s closed `countries\[\]` catalog/);
+  assert.match(readme, /\*\*Domain example\*\*/);
+  assert.match(readme, /Prefer `review_diff` \/ `code_audit`/);
+  assert.doesNotMatch(readme, /Catalogue item → Argentina/);
+  assert.doesNotMatch(`${readme}\n${skill}`, /plata\/horas/i);
 });
 
 test("README pack table covers the same registry ids", () => {
