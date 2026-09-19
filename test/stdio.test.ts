@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
+import { packCount } from "../src/packs/index.js";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 test("stdio MCP exposes the closed tool catalog and answers ping", async () => {
@@ -31,7 +33,7 @@ test("stdio MCP exposes the closed tool catalog and answers ping", async () => {
     assert.ok(text && text.type === "text");
     const body = JSON.parse(text.text) as { server: string; api_key_set: boolean; packs: number };
     assert.equal(body.server, "mcp_jev");
-    assert.equal(body.packs, 9);
+    assert.equal(body.packs, packCount());
     assert.equal(typeof body.api_key_set, "boolean");
   } finally {
     await client.close();

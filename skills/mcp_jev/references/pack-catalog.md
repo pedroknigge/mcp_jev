@@ -6,7 +6,7 @@ Exact pack ids, state fields, and question ids from the TypeScript pack definiti
 Regenerate: `npx tsx scripts/sync-skill-catalog.ts` (also `npm run sync-skill-catalog`).
 `npm test` fails if this file drifts from the registry.
 
-Registry order (9): `pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `review_diff`, `code_audit`, `skill_router`, `command_risk`.
+Registry order (11): `pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `review_diff`, `code_audit`, `skill_router`, `command_risk`, `verify_gap`, `boundary_check`.
 
 Agent skill: [`../SKILL.md`](../SKILL.md). After `scripts/update.sh`, re-load that skill
 (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).
@@ -667,4 +667,124 @@ Required: `command`. `additionalProperties: false`.
 - Signals only. A harness allowlist / sandbox is still required. Never treat a low severity as permission to skip your own checks.
 - Example thresholds are caller-owned and should be unit-tested without a live TypeSafe key (assert your gate function, not Jev).
 - Do not send env files or key values in state. Paths and command argv only.
+
+## `verify_gap` 1.0.0
+
+**Verify gap.** Atomic judgment: does a claimed behavior/change have adequate verification? Nouls has_adequate_verification / claim_is_testable / evidence_matches_claim, Score verification_gap (0 none → 3 ship-blocker), Choice next_proof.
+
+When to use: When someone asserts a change works and you need a typed gap check before shipping. Prefer this over treating `review_diff.test_gap` or `code_audit.missing_verification` as a ship gate. Do not use Jev to write the test or compute `code_gate`.
+
+### State
+
+Required: `claim`. `additionalProperties: false`.
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `claim` | string | yes | What someone asserts works. |
+| `evidence` | array | no | Optional test names, CI jobs, or manual checks already known. |
+| `diff_summary` | string | no | Optional short summary of the diff. Do not paste a huge raw patch. |
+| `change_summary` | string | no | Optional short summary of the change when you do not have a diff. |
+| `signals` | object | no | Optional caller-computed heuristics. Extra evidence, not the decision. |
+| `signals.has_tests_nearby` | boolean | no | Caller already thinks tests live next to the change. |
+| `signals.touches_money` | boolean | no | Caller already thinks billing, prices, payouts, or ledgers are in play. |
+| `signals.touches_auth` | boolean | no | Caller already thinks authn/authz is in play. |
+| `signals.is_generated` | boolean | no | Caller already thinks the change is generated or vendor output. |
+
+### Questions
+
+- **noul** `has_adequate_verification`
+- **noul** `claim_is_testable`
+- **noul** `evidence_matches_claim`
+- **score** `verification_gap` — 4 rungs: None; Small; Material; Ship-blocker
+- **choice** `next_proof` — options: `unit_test` | `integration` | `manual_check` | `type_proof` | `none_needed` | `unclear`
+
+### Example state
+
+```json
+{
+  "claim": "Reserved catalog ids fail closed before TypeSafe is called.",
+  "evidence": [
+    "review_diff rejects reserved file catalog entries before TypeSafe",
+    "npm test"
+  ],
+  "change_summary": "Adds reserved-id checks on files[] and a unit test. No auth or money change.",
+  "signals": {
+    "has_tests_nearby": true,
+    "touches_money": false,
+    "touches_auth": false,
+    "is_generated": false
+  }
+}
+```
+
+### Suggested workflow
+
+1. Put the asserted behavior in `claim`. Add known test names / CI jobs in `evidence`. Add a short `diff_summary` or `change_summary` if you have one.
+1. Optionally set `signals` from path heuristics (tests nearby, money, auth, generated) before the call.
+1. list_packs / describe_pack once if unfamiliar, then run_pack verify_gap.
+1. Read the three Nouls first, then verification_gap.score, then next_proof.choice.
+1. Compute code_gate in the caller (`verifyGapCodeGate` in src/policy-examples.ts). Jev does not write the test or return code_gate.
+
+### Notes
+
+- code_gate is computed by the caller, not Jev. Example: block if verification_gap.score ≥ 2.5, or claim_is_testable.noul ≥ 0.65 with has_adequate_verification.noul < 0.35; add_proof if verification_gap.score ≥ 1.5 or evidence_matches_claim.noul < 0.45; else ship. Tune on your traces.
+- Distinct from review_diff.test_gap (diff-wide) and code_audit.missing_verification (per-file). This pack judges one claim against named evidence.
+- signals are extra evidence, not the decision. Generated or docs-only claims can still be none_needed.
+- Noul answers have no separate confidence field — the probability is the belief.
+
+## `boundary_check` 1.0.0
+
+**Boundary check.** Atomic layering judgment for one module: Nouls crosses_layer / leaks_domain_to_ui / leaks_infra_to_domain, Score boundary_risk, Choice fix (keep | extract | move_layer | unclear).
+
+When to use: When you already have a module’s import/export list and want a typed layering check. Prefer this over treating `code_audit.wrong_layer` as a refactor plan. Do not use Jev to move files or rewrite imports.
+
+### State
+
+Required: `module`, `imports`, `exports`. `additionalProperties: false`.
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `module` | string | yes | Path or name of the module under review. |
+| `imports` | array | yes | Closed list of import paths or module names this file uses. |
+| `exports` | array | yes | Closed list of exported names or paths. |
+| `layer_hint` | string | no | Optional caller layer, e.g. ui, domain, infra, application. |
+| `change_summary` | string | no | Optional short note about what changed in this module. |
+
+### Questions
+
+- **noul** `crosses_layer`
+- **noul** `leaks_domain_to_ui`
+- **noul** `leaks_infra_to_domain`
+- **score** `boundary_risk` — 4 rungs: Clean; Local smell; Cross-layer leak; Systemic
+- **choice** `fix` — options: `keep` | `extract` | `move_layer` | `unclear`
+
+### Example state
+
+```json
+{
+  "module": "src/domain/catalog.ts",
+  "imports": [
+    "src/ui/CatalogCard.tsx",
+    "src/infra/postgres.ts"
+  ],
+  "exports": [
+    "listCatalog"
+  ],
+  "layer_hint": "domain",
+  "change_summary": "Domain catalog list now imports a React card and a Postgres client."
+}
+```
+
+### Suggested workflow
+
+1. Collect `module`, the closed `imports[]` / `exports[]` lists, and an optional `layer_hint` / `change_summary` in code.
+1. list_packs / describe_pack once if unfamiliar, then run_pack boundary_check.
+1. Read the three Nouls first, then boundary_risk.score, then fix.choice.
+1. Apply extract / move / keep in the caller. Jev does not rewrite imports or move files.
+
+### Notes
+
+- Signals only. Distinct from code_audit.wrong_layer (per-file scan). This pack judges one module’s import/export boundary.
+- Thresholds live in caller code. Example: review if any leak Noul ≥ 0.65; treat as a hard look if boundary_risk.score ≥ 2.5 or crosses_layer.noul ≥ 0.75.
+- Closed fix catalog. Fork the pack in-repo if you need another action name.
 

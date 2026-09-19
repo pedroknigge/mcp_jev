@@ -7,7 +7,7 @@ import { loadConfig } from "../src/config.js";
 import { handleDescribePack, handleRunPack } from "../src/handlers.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
 import { NONE_OPTION } from "../src/packs/catalog-choice.js";
-import { commandRiskGate, gateCodeAudit, skillRouterGate } from "../src/policy-examples.js";
+import { commandRiskGate, gateCodeAudit, skillRouterGate, verifyGapCodeGate } from "../src/policy-examples.js";
 
 test("skill_router builds skill Choice from available_skills[]", () => {
   const pack = getPack("skill_router");
@@ -116,4 +116,33 @@ test("code-owned policy gates are unit-testable without TypeSafe", () => {
   assert.equal(gateCodeAudit({ ...cleanAudit, secret_or_credential_risk: 0.8 }), "deep_review");
   assert.equal(gateCodeAudit({ ...cleanAudit, problem_severity: 2.7 }), "deep_review");
   assert.equal(gateCodeAudit({ ...cleanAudit, blast_radius: 0.85 }), "deep_review");
+
+  const covered = {
+    has_adequate_verification: 0.82,
+    claim_is_testable: 0.9,
+    evidence_matches_claim: 0.78,
+    verification_gap: 0.4,
+    next_proof: "none_needed",
+  };
+  assert.equal(verifyGapCodeGate(covered), "ship");
+  assert.equal(verifyGapCodeGate({ ...covered, verification_gap: 1.7, next_proof: "unit_test" }), "add_proof");
+  assert.equal(
+    verifyGapCodeGate({
+      has_adequate_verification: 0.2,
+      claim_is_testable: 0.8,
+      evidence_matches_claim: 0.1,
+      verification_gap: 1.2,
+    }),
+    "block",
+  );
+  assert.equal(verifyGapCodeGate({ ...covered, verification_gap: 2.6, next_proof: "unit_test" }), "block");
+  assert.equal(
+    verifyGapCodeGate({
+      has_adequate_verification: 0.5,
+      claim_is_testable: 0.7,
+      evidence_matches_claim: 0.3,
+      verification_gap: 1.0,
+    }),
+    "add_proof",
+  );
 });

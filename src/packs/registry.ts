@@ -1,4 +1,5 @@
 import { ToolError } from "../errors.js";
+import { boundaryCheckPack } from "./boundary-check.js";
 import { codeAuditPack } from "./code-audit.js";
 import { commandRiskPack } from "./command-risk.js";
 import { computerUseStepPack } from "./computer-use-step.js";
@@ -8,6 +9,7 @@ import { modelRouterPack } from "./model-router.js";
 import { prAuditPack } from "./pr-audit.js";
 import { reviewDiffPack } from "./review-diff.js";
 import { skillRouterPack } from "./skill-router.js";
+import { verifyGapPack } from "./verify-gap.js";
 import type { PackDefinition, PackSummary } from "./types.js";
 
 const packs: PackDefinition[] = [
@@ -20,6 +22,8 @@ const packs: PackDefinition[] = [
   codeAuditPack,
   skillRouterPack,
   commandRiskPack,
+  verifyGapPack,
+  boundaryCheckPack,
 ];
 
 const byId = new Map(packs.map((pack) => [pack.id, pack]));

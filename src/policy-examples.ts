@@ -56,3 +56,23 @@ export function gateCodeAudit(answers: CodeAuditSignals): "ok" | "glance" | "dee
   if (noulMax >= 0.55 || answers.problem_severity >= 1.5) return "glance";
   return "ok";
 }
+
+export type VerifyGapSignals = {
+  has_adequate_verification: number;
+  claim_is_testable: number;
+  evidence_matches_claim: number;
+  verification_gap: number;
+  next_proof?: string;
+};
+
+/** Caller-owned code_gate for verify_gap. Unit-test without a TypeSafe key. */
+export function verifyGapCodeGate(signals: VerifyGapSignals): "ship" | "add_proof" | "block" {
+  if (signals.verification_gap >= 2.5) return "block";
+  if (signals.claim_is_testable >= 0.65 && signals.has_adequate_verification < 0.35) return "block";
+  if (signals.next_proof === "none_needed" && signals.verification_gap < 1.5 && signals.has_adequate_verification >= 0.6) {
+    return "ship";
+  }
+  if (signals.verification_gap >= 1.5) return "add_proof";
+  if (signals.has_adequate_verification < 0.55 || signals.evidence_matches_claim < 0.45) return "add_proof";
+  return "ship";
+}
