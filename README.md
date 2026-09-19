@@ -585,7 +585,7 @@ CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev ho
 | `run_pack` / `run_questions` / `scan` → `missing_api_key` | Same. `--dry-run` still works. Do not fabricate answers. |
 | `run_pack` → `auth` | Key rejected (HTTP 401). Rotate at the TypeSafe dashboard, then `config set-key`. |
 | `invalid_state` | Re-read `describe_pack`. Starter packs reject extra fields. `computer_use_step` also rejects screenshots. Custom `run_questions` state must be a JSON object. |
-| `invalid_questions` | `run_questions` failed schema: Choice needs 2–255 closed options; Score ≥2 levels; no free-form types. |
+| `invalid_questions` | `run_questions` failed schema: Choice needs 2–255 closed options; Score ≥2 levels; use `instructions` (alias `prompt` ok); no free-form types. |
 | `unknown_pack` | `list_packs`. If none fits, `run_questions`. There is no `ask_jev`. |
 | Wrong Node | `node -v` must be 20+. GUI hosts may not see nvm. |
 | stdio pollution | Wrapper and server must not write to **stdout**. |

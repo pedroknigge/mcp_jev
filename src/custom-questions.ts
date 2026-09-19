@@ -100,8 +100,8 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
     return `${prefix} must be an object with id, type, instructions, and type-specific criteria`;
   }
 
-  // Agent dogfood: Score often arrives as `levels` instead of `criteria`; Choice as `options`.
-  // Normalize only when `criteria` is absent.
+  // Agent dogfood: Score often arrives as `levels` instead of `criteria`; Choice as `options`;
+  // agents often send `prompt` instead of `instructions`. Normalize aliases when canonical absent.
   const normalized = normalizeQuestionAliases(raw, prefix);
   if (typeof normalized === "string") {
     return normalized;
@@ -158,13 +158,24 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
   return { id, type: "score", instructions: instructions.trim(), criteria };
 }
 
-/** Common agent typos → canonical `criteria`. Fail closed if both are set and differ. */
+/** Common agent typos → canonical fields. Fail closed if both alias and canonical are set and differ. */
 function normalizeQuestionAliases(
   raw: Record<string, unknown>,
   prefix: string,
 ): Record<string, unknown> | string {
   const type = raw.type;
   const out: Record<string, unknown> = { ...raw };
+
+  if ("prompt" in out) {
+    if (out.instructions === undefined) {
+      out.instructions = out.prompt;
+      delete out.prompt;
+    } else if (out.instructions === out.prompt) {
+      delete out.prompt;
+    } else {
+      return `${prefix} has both instructions and prompt; use instructions only`;
+    }
+  }
 
   if (type === "score" && "levels" in out) {
     if (out.criteria === undefined) {
@@ -193,6 +204,9 @@ function normalizeQuestionAliases(
 
 function aliasHint(extras: string[], type: unknown): string {
   const bits: string[] = [];
+  if (extras.includes("prompt")) {
+    bits.push("use instructions (not prompt)");
+  }
   if (extras.includes("levels")) {
     bits.push("for score use criteria: string[] (not levels)");
   }

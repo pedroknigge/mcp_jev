@@ -575,7 +575,7 @@ Skip `describe_pack` only when you already have that pack's schema in **this** s
 
 - Args: `{ state: object, questions: array, model?: string }`
 - Fail-closed schema, then the same `TypeSafeClient.systemOne` path as `run_pack`
-- Each question: `{ id, type: "choice"|"noul"|"score", instructions, criteria }` (aliases: score `levels`→`criteria`, choice `options`→`criteria` when `criteria` absent)
+- Each question: `{ id, type: "choice"|"noul"|"score", instructions, criteria }` (aliases: `prompt`→`instructions`; score `levels`→`criteria`; choice `options`→`criteria` when canonical field absent)
 - Returns `{ model, answers, usage }`
 - No side effects
 - Errors: `missing_api_key`, `invalid_arguments`, `invalid_state`, `invalid_questions`, plus the TypeSafe codes above
