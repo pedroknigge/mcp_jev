@@ -84,7 +84,7 @@ Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host
 | Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
 | Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
 | Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | Orchestration stays in the caller. Not `pr_audit` (money/hours/migration). |
-| Per-file or full-repo scan: closed per-file state → typed ratings | `code_audit` | Do not dump the monorepo. Fan out `run_pack`. Not `review_diff` (a short diff). |
+| Per-file or full-repo scan: compact signals → typed ratings in ~RTT | `code_audit` | Pass 1 signals-only over all files; Pass 2 short excerpt on top-N. Not a multi-second review. |
 | Pull request merge risk (money / hours / migration) | `pr_audit` | Jev does not write the review or compute `code_gate`. |
 | Catalogue SKU → one of five countries | `locale_country` | Not a geocoder for people or addresses. |
 | Closed skill names → load one or none | `skill_router` | Not a model lane. Not a GUI step. |
@@ -126,20 +126,29 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → treat as `ask_u
 
 ## Recipe: `code_audit`
 
-Full-repo scan = harness lists all files → filter screenshots/binaries/generated vendor dirs → truncate excerpts (caller-owned, e.g. ≤4k chars) → parallel `run_pack` `code_audit` → aggregate top `problem_severity` / most frequent Nouls. **Do not send the monorepo as prose.**
+Millisecond-tier. **~network RTT per file; parallelize N workers.** Not a multi-second LLM review. Do not send the monorepo as prose.
 
-Mode A (preferred): one file per call.
+**Pass 1 (default, all files):** list files → filter screenshots/binaries/generated vendor dirs → `run_pack` `code_audit` with signals-only state → aggregate top `problem_severity` / most frequent Nouls.
 
 ```json
 {
   "path": "src/billing/invoice-total.ts",
   "language": "ts",
   "role_hint": "domain",
-  "excerpt": "export function invoiceTotal(lines) { return lines.reduce((s, l) => s + l.price * l.qty, 0); }",
-  "signals": { "loc": 12, "has_tests_nearby": false, "touches_money": true, "is_generated": false },
+  "signals": {
+    "loc": 12,
+    "import_count": 1,
+    "top_imports": ["money"],
+    "has_tests_nearby": false,
+    "touches_money": true,
+    "is_generated": false,
+    "complexity_heuristic": 2
+  },
   "repo_context": "Billing module: invoice line totals."
 }
 ```
+
+**Pass 2 (top-N only):** resend hottest files with a short `excerpt` (hard max 1200 chars). Oversized excerpts are `invalid_state`.
 
 Read Nouls `wrong_layer` / `blast_radius` / `missing_verification` / `secret_or_credential_risk` / `inefficiency` / `dead_or_premature_abstraction`, Scores `problem_severity` + `change_cost`, Choice `primary_concern` (`none` | `layering` | `blast_radius` | `verification` | `security` | `performance` | `abstraction` | `other`).
 
@@ -226,7 +235,7 @@ Packs live under `src/packs/` in [pedroknigge/mcp_jev](https://github.com/pedrok
 | --- | --- | --- |
 | `pr_audit` | `merge_risk`; Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. |
 | `review_diff` | Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`; Choice `hotspot_file`; Score `severity` | Gate and comments in caller code. |
-| `code_audit` | Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Fan out one file per `run_pack`. Aggregate + `gateCodeAudit` in code. Optional Mode B `hotspot_file`. |
+| `code_audit` | Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Pass 1 signals-only (~RTT, N workers). Pass 2 short excerpt on top-N. `gateCodeAudit` in code. |
 | `skill_router` | `needs_skill`; `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. |
 | `command_risk` | `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. |
 | `intent_router` | `intent`; Nouls `jailbreak` / `policy_violation`; Score `urgency` | Route / refuse in code. |
@@ -259,7 +268,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
 - Treat non-interactive install without a key as success (`NOT_READY` / doctor must fail)
 - Ask Jev for `code_gate` on `pr_audit` or `review_diff`
-- Dump a whole monorepo into `code_audit` state (fan out truncated per-file excerpts instead)
+- Dump a whole monorepo or large excerpts into `code_audit` (Pass 1 is signals-only; Pass 2 caps excerpt at 1200 chars)
 - Put screenshots, binaries, or generated vendor trees in `code_audit` state
 - Put screenshots or image blobs in `computer_use_step` state
 - Act on speculative targets that do not match `operation`

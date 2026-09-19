@@ -2,6 +2,12 @@ import { ToolError } from "../errors.js";
 import { readStringCatalog, stringCatalogChoiceCriteria } from "./catalog-choice.js";
 import type { PackDefinition, PackQuestion } from "./types.js";
 
+/** Pass-2 excerpt hard cap. Pass 1 is signals-only — do not send bodies. */
+export const MAX_EXCERPT_CHARS = 1200;
+export const MAX_TOP_IMPORTS = 8;
+export const MAX_REPO_CONTEXT_CHARS = 280;
+export const MAX_BATCH_NOTES_CHARS = 400;
+
 const PRIMARY_CONCERN_CRITERIA = {
   none: "No material concern. The file looks in the right layer, verifiable, and locally contained.",
   layering: "UI / API / DB / domain / infra concerns look mixed or in the wrong home.",
@@ -38,9 +44,9 @@ function staticQuestions(): PackQuestion[] {
       type: "noul",
       id: "wrong_layer",
       instructions:
-        "Given `path`, `role_hint`, `excerpt`, `repo_context`, and `signals`, do UI / API / DB / domain / infra concerns look mixed or in the wrong home?",
+        "Given `path`, `role_hint`, and `signals` (and `excerpt` only if present), do UI / API / DB / domain / infra concerns look mixed or in the wrong home?",
       criteria: {
-        true: "The excerpt or path places a concern in the wrong layer, or mixes layers in one unit.",
+        true: "Path, role_hint, or signals place a concern in the wrong layer, or mix layers.",
         false: "The file sits in a coherent layer, or layering is not indicated.",
       },
     },
@@ -48,9 +54,9 @@ function staticQuestions(): PackQuestion[] {
       type: "noul",
       id: "blast_radius",
       instructions:
-        "Would a change to this file (or batch) likely break distant callers or modules? Use `signals` (imports, complexity, money/auth flags) and `excerpt` / `batch_notes` as extra evidence, not the decision.",
+        "Would a change here likely break distant callers or modules? Prefer `signals` (import_count, top_imports, complexity, money/auth). Use `excerpt` only if present.",
       criteria: {
-        true: "Shared contracts, many importers, or cross-module coupling look likely.",
+        true: "Shared contracts, many imports, or cross-module coupling look likely.",
         false: "Impact looks local, or blast radius is not indicated.",
       },
     },
@@ -58,7 +64,7 @@ function staticQuestions(): PackQuestion[] {
       type: "noul",
       id: "missing_verification",
       instructions:
-        "Does the behavior look untested, hard to verify, or lacking nearby tests? Use `signals.has_tests_nearby` as extra evidence, not the decision.",
+        "Does the file look untested or hard to verify? Use `signals.has_tests_nearby` as extra evidence, not the decision.",
       criteria: {
         true: "Important behavior has no nearby tests, or looks hard to verify.",
         false: "Verification looks adequate, or the file is not behavior (config, generated, docs).",
@@ -68,7 +74,7 @@ function staticQuestions(): PackQuestion[] {
       type: "noul",
       id: "secret_or_credential_risk",
       instructions:
-        "Do `excerpt`, `path`, or `signals` indicate secrets, tokens, credentials, or unsafe logging of sensitive data?",
+        "Do `path` or `signals` (and `excerpt` only if present) indicate secrets, tokens, credentials, or unsafe logging of sensitive data?",
       criteria: {
         true: "Secrets or credential handling look present or leaked.",
         false: "No secret or credential risk is indicated.",
@@ -78,17 +84,17 @@ function staticQuestions(): PackQuestion[] {
       type: "noul",
       id: "inefficiency",
       instructions:
-        "Is there an obvious performance smell (N+1, unbounded loop, sync on a hot path) when `excerpt` or `signals` indicate it? Do not invent a perf issue from path alone.",
+        "Is an obvious performance smell indicated by `signals` (loc, complexity_heuristic, import_count) or a short `excerpt` if present? Do not invent a perf issue from path alone. Missing excerpt is not a smell.",
       criteria: {
-        true: "An inefficiency is visible in the excerpt or strongly indicated by signals.",
-        false: "No performance smell is indicated, or there is not enough excerpt to tell.",
+        true: "Signals or a short excerpt strongly indicate N+1, unbounded work, or sync on a hot path.",
+        false: "No performance smell is indicated.",
       },
     },
     {
       type: "noul",
       id: "dead_or_premature_abstraction",
       instructions:
-        "Does the excerpt show unused indirection or speculative frameworky glue that is not earning its keep?",
+        "Do `path`, `role_hint`, and `signals` (complexity, top_imports) indicate unused indirection or speculative glue? Use `excerpt` only if present. Do not flag this just because excerpt is absent.",
       criteria: {
         true: "Extra layers, unused wrappers, or speculative abstraction are indicated.",
         false: "Abstraction looks justified or is not indicated.",
@@ -98,7 +104,7 @@ function staticQuestions(): PackQuestion[] {
       type: "score",
       id: "problem_severity",
       instructions:
-        "How severe is the combined concern given the Nouls, `excerpt` / `batch_notes`, and `signals`?",
+        "How severe is the combined concern given the Nouls and `signals`? Use `excerpt` only if present (Pass 2 confirmation).",
       criteria: [
         "Clean: no material issue indicated.",
         "Local smell: contained, not a ship risk.",
@@ -110,7 +116,7 @@ function staticQuestions(): PackQuestion[] {
       type: "score",
       id: "change_cost",
       instructions:
-        "How expensive would it be to fix or refactor this safely, given `excerpt`, `signals`, and `repo_context`?",
+        "How expensive would it be to fix or refactor this safely, given `signals`, `path`, and `repo_context`? Use `excerpt` only if present.",
       criteria: [
         "Cheap local edit.",
         "One module; straightforward tests.",
@@ -136,14 +142,56 @@ function questionsForState(state: Record<string, unknown>): PackQuestion[] {
   return [...questions, hotspotQuestion(state)];
 }
 
+function enforceBoundedString(
+  state: Record<string, unknown>,
+  field: string,
+  maxChars: number,
+  hint: string,
+): void {
+  const value = state[field];
+  if (typeof value !== "string" || value.length <= maxChars) {
+    return;
+  }
+  throw new ToolError(
+    "invalid_state",
+    `code_audit ${field} is ${value.length} chars; max ${maxChars}. ${hint}`,
+    { field, max_chars: maxChars, actual_chars: value.length },
+  );
+}
+
 function enforceCodeAuditState(state: Record<string, unknown>): void {
-  if (singleFileMode(state)) {
-    if (typeof state.excerpt !== "string") {
+  enforceBoundedString(
+    state,
+    "excerpt",
+    MAX_EXCERPT_CHARS,
+    `Pass 1 is signals-only (milliseconds / RTT). Pass 2 sends a short excerpt on top-N files only. Truncate in the harness — this pack rejects large bodies.`,
+  );
+  enforceBoundedString(
+    state,
+    "repo_context",
+    MAX_REPO_CONTEXT_CHARS,
+    "Keep module purpose to one short line.",
+  );
+  enforceBoundedString(
+    state,
+    "batch_notes",
+    MAX_BATCH_NOTES_CHARS,
+    "Mode B is paths + a short note, not concatenated sources.",
+  );
+
+  const signals = state.signals;
+  if (signals && typeof signals === "object" && !Array.isArray(signals)) {
+    const imports = readStringCatalog((signals as Record<string, unknown>).top_imports);
+    if (imports.length > MAX_TOP_IMPORTS) {
       throw new ToolError(
         "invalid_state",
-        "code_audit single-file mode (`path` set) requires `excerpt` (string). The harness truncates; Jev does not receive the whole repo.",
+        `code_audit signals.top_imports has ${imports.length} entries; max ${MAX_TOP_IMPORTS}. Send a short closed list of top import names.`,
+        { field: "signals.top_imports", max_items: MAX_TOP_IMPORTS, actual_items: imports.length },
       );
     }
+  }
+
+  if (singleFileMode(state)) {
     return;
   }
   if (readStringCatalog(state.files).length > 0) {
@@ -151,7 +199,7 @@ function enforceCodeAuditState(state: Record<string, unknown>): void {
   }
   throw new ToolError(
     "invalid_state",
-    "code_audit needs Mode A (`path` + `excerpt`, preferred: one file per run_pack) or Mode B (`files[]` paths only). Do not send the whole repository as prose.",
+    "code_audit needs Mode A (`path` + compact `signals`, preferred) or Mode B (`files[]` paths only). Do not send the whole repository as prose.",
   );
 }
 
@@ -160,9 +208,9 @@ export const codeAuditPack: PackDefinition = {
   version: "1.0.0",
   title: "Code audit",
   summary:
-    "Per-file structured engineering audit: Nouls for layering / blast-radius / verification / secrets / inefficiency / abstraction, Scores problem_severity + change_cost, Choice primary_concern. Optional Mode B: hotspot_file from a closed files[] catalog. Harness fans out for 100% coverage — Jev never sees the whole repo as prose.",
+    "Millisecond-tier per-file structured engineering audit: compact signals in, typed Nouls / Scores / primary_concern out. Latency is send/receive RTT per file — parallelize N workers. Pass 1 is signals-only over all files; Pass 2 adds a short excerpt on top-N only.",
   when_to_use:
-    "When a harness already listed files and built a closed per-file (or per-chunk) state and needs typed ratings — not a written review. Prefer one run_pack per file (path + truncated excerpt + signals). Do not dump a monorepo into state. Distinct from review_diff (a short diff) and pr_audit (money/hours/migration merge). Compose gates in your code.",
+    "When a harness already listed files and computed compact per-file signals and needs typed ratings — not a written review and not a multi-second LLM pass. Default: one run_pack per file with path + signals (no body). Distinct from review_diff (a short diff) and pr_audit (money/hours/migration merge). Compose gates in your code.",
   state_schema: {
     type: "object",
     additionalProperties: false,
@@ -184,16 +232,21 @@ export const codeAuditPack: PackDefinition = {
       excerpt: {
         type: "string",
         description:
-          "Caller-truncated file text (e.g. ≤4k chars). The harness owns truncation and chunking. Required in Mode A (`path` set). Do not send binaries.",
+          `Pass 2 only. Optional short confirmation snippet, hard-capped at ${MAX_EXCERPT_CHARS} chars. Rejected if larger. Omit on Pass 1 (all-files scan).`,
       },
       signals: {
         type: "object",
         description:
-          "Optional harness-computed heuristics. Extra evidence, not the decision. Filter generated/vendor paths in the harness before calling.",
+          "Harness-computed heuristics. Pass 1 default evidence. Filter generated/vendor paths in the harness before calling.",
         additionalProperties: false,
         properties: {
-          loc: { type: "number", description: "Lines of code in the file or chunk." },
+          loc: { type: "number", description: "Lines of code in the file." },
           import_count: { type: "number", description: "Import / include count." },
+          top_imports: {
+            type: "array",
+            description: `Optional short closed list of top import/module names (max ${MAX_TOP_IMPORTS}).`,
+            items: { type: "string" },
+          },
           has_tests_nearby: {
             type: "boolean",
             description: "Caller already thinks a sibling or colocated test exists.",
@@ -218,7 +271,7 @@ export const codeAuditPack: PackDefinition = {
       },
       repo_context: {
         type: "string",
-        description: "Optional short module purpose. Not a repo dump.",
+        description: `Optional one-line module purpose (max ${MAX_REPO_CONTEXT_CHARS} chars). Not a repo dump.`,
       },
       files: {
         type: "array",
@@ -228,8 +281,7 @@ export const codeAuditPack: PackDefinition = {
       },
       batch_notes: {
         type: "string",
-        description:
-          "Mode B: short batch summary without file bodies. Do not paste concatenated sources.",
+        description: `Mode B: short batch note without file bodies (max ${MAX_BATCH_NOTES_CHARS} chars).`,
       },
     },
   },
@@ -237,11 +289,10 @@ export const codeAuditPack: PackDefinition = {
     path: "src/billing/invoice-total.ts",
     language: "ts",
     role_hint: "domain",
-    excerpt:
-      "export function invoiceTotal(lines: { price: number; qty: number }[]) {\n  return lines.reduce((sum, line) => sum + line.price * line.qty, 0);\n}\n",
     signals: {
       loc: 12,
-      import_count: 0,
+      import_count: 1,
+      top_imports: ["money"],
       has_tests_nearby: false,
       touches_money: true,
       touches_auth: false,
@@ -254,18 +305,17 @@ export const codeAuditPack: PackDefinition = {
   questionsForState,
   enforceState: enforceCodeAuditState,
   suggested_workflow: [
-    "Harness lists files for 100% coverage. Filter screenshots, binaries, and generated/vendor dirs before any run_pack.",
-    "Mode A (preferred): for each remaining file, build a closed state — path, optional language/role_hint/signals/repo_context, and a truncated excerpt (caller owns the cap, e.g. ≤4k chars or chunk and call again).",
-    "Fan out parallel run_pack code_audit calls. Never concatenate the monorepo into one state blob.",
-    "Read Nouls first (wrong_layer, blast_radius, missing_verification, secret_or_credential_risk, inefficiency, dead_or_premature_abstraction), then problem_severity / change_cost, then primary_concern.",
-    "Aggregate in code: top problem_severity, most frequent high Nouls, files whose primary_concern is not none. Example gate: src/policy-examples.ts gateCodeAudit → ok | glance | deep_review.",
-    "Optional Mode B: one call with files[] paths plus short batch_notes (no bodies) to pick hotspot_file. If path is also set, Mode A wins and hotspot_file is not asked.",
+    "Pass 1 (default, milliseconds): list files; filter screenshots, binaries, generated/vendor dirs; for every remaining file build path + language + role_hint + compact signals (no excerpt). Parallelize N workers — expect ~network RTT per file, not a multi-second review.",
+    "One systemOne call per file returns the Nouls, problem_severity, change_cost, and primary_concern. Aggregate in code: top severity, most frequent high Nouls.",
+    "Pass 2: only top-N severity/hotspot files get a second run_pack with a short excerpt (hard max 1200 chars) for confirmation. Do not excerpt the whole tree.",
+    "Example gate: src/policy-examples.ts gateCodeAudit → ok | glance | deep_review.",
+    "Optional Mode B: files[] paths + short batch_notes (no bodies) to pick hotspot_file. If path is also set, Mode A wins.",
   ],
   notes: [
-    "Jev must not receive the whole repository as prose. 100% file coverage is a harness fan-out: list → filter → truncate → parallel run_pack → aggregate.",
-    "Mode A (preferred v1): path + excerpt + optional signals. Mode B: files[] + batch_notes, Choice hotspot_file from the closed files[] catalog. When both path and files exist, single-file Mode A wins.",
-    "The caller owns excerpt truncation and chunking. This pack does not slice files.",
-    "Screenshots, pixels, image blobs, and binaries stay out of state. Generated and vendor directories should be filtered by the harness, not sent with is_generated as a substitute for skipping.",
+    "Millisecond posture: compact signals in, typed answers out. Cost is send/receive RTT per file. Parallelize N workers. This is not a chat-model file review.",
+    "Pass 1 (all files): path + signals, no excerpt. Pass 2 (top-N only): optional excerpt, hard-capped at 1200 chars — oversized excerpts are invalid_state, not silently truncated.",
+    "Mode A (preferred): one file per run_pack. Mode B: files[] + batch_notes, Choice hotspot_file. When both path and files exist, single-file Mode A wins.",
+    "The harness owns excerpt truncation. This pack rejects bodies over the cap. Screenshots, binaries, and generated/vendor dirs stay out.",
     "Thresholds live in caller code (gateCodeAudit is an example). Jev does not write a review comment or compute a repo-wide grade.",
     "Distinct from review_diff (short diff + files[] hotspot) and pr_audit (money/hours/migration merge).",
     "Noul answers have no separate confidence field — the probability is the belief. Choice and Score include probabilities plus confidence.",

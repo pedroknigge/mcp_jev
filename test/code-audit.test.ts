@@ -6,6 +6,7 @@ import { type Questions, type SystemOneResult } from "@typesafe-ai/sdk";
 import { loadConfig } from "../src/config.js";
 import { ToolError } from "../src/errors.js";
 import { handleDescribePack, handleRunPack } from "../src/handlers.js";
+import { MAX_EXCERPT_CHARS, MAX_TOP_IMPORTS } from "../src/packs/code-audit.js";
 import { NONE_OPTION } from "../src/packs/catalog-choice.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
 
@@ -62,10 +63,13 @@ test("code_audit describe and example stay internally consistent", () => {
     pack.questions.map((question) => question.id),
     MODE_A_QUESTION_IDS,
   );
-  assert.ok(pack.summary.includes("structured engineering audit"));
+  assert.ok(pack.summary.includes("Millisecond-tier"));
   assert.ok(pack.when_to_use.includes("one run_pack per file"));
-  assert.ok(pack.notes.some((note) => /fan-out/i.test(note)));
-  assert.ok(pack.notes.some((note) => /truncat/i.test(note)));
+  assert.ok(pack.notes.some((note) => /Pass 1/i.test(note)));
+  assert.ok(pack.notes.some((note) => /RTT/i.test(note)));
+  assert.ok(pack.notes.some((note) => /1200/i.test(note)));
+  assert.equal("excerpt" in pack.example_state, false);
+  assert.ok(pack.example_state.signals && typeof pack.example_state.signals === "object");
   assert.ok(!/pstack/i.test(JSON.stringify(described)));
   assert.ok(!pack.questions.some((question) => question.id === "code_gate"));
 });
@@ -105,7 +109,7 @@ test("code_audit prefers Mode A when path is set even if files[] is present", ()
   const pack = getPack("code_audit");
   const questions = questionsFor(pack, {
     path: "src/billing/invoice-total.ts",
-    excerpt: "export function invoiceTotal() { return 0; }",
+    signals: { loc: 8, has_tests_nearby: false },
     files: ["src/billing/invoice-total.ts", "src/api/invoices.ts"],
     batch_notes: "Should be ignored for question building.",
   });
@@ -113,9 +117,10 @@ test("code_audit prefers Mode A when path is set even if files[] is present", ()
   assert.equal(questions.primary_concern?.type, "choice");
 });
 
-test("code_audit run_pack uses mocked TypeSafe and keeps aggregation out of answers", async () => {
+test("code_audit run_pack uses mocked TypeSafe on signals-only Pass 1 state", async () => {
   const config = loadConfig({ TYPESAFE_API_KEY: "test-key" });
   const pack = getPack("code_audit");
+  assert.equal("excerpt" in pack.example_state, false);
   const result = await handleRunPack(
     { pack_id: "code_audit", state: pack.example_state },
     {
@@ -209,7 +214,7 @@ test("code_audit rejects reserved file catalog entries before TypeSafe", async (
   assert.equal(called, false);
 });
 
-test("code_audit rejects empty state and path without excerpt", async () => {
+test("code_audit rejects empty state and oversized Pass-2 excerpt", async () => {
   const config = loadConfig({ TYPESAFE_API_KEY: "test-key" });
   let called = false;
   const deps = {
@@ -224,8 +229,56 @@ test("code_audit rejects empty state and path without excerpt", async () => {
     (err: unknown) => err instanceof ToolError && err.code === "invalid_state" && /Mode A/.test(err.message),
   );
   await assert.rejects(
-    () => handleRunPack({ pack_id: "code_audit", state: { path: "src/a.ts" } }, deps),
-    (err: unknown) => err instanceof ToolError && err.code === "invalid_state" && /excerpt/.test(err.message),
+    () =>
+      handleRunPack(
+        {
+          pack_id: "code_audit",
+          state: { path: "src/a.ts", excerpt: "x".repeat(MAX_EXCERPT_CHARS + 1) },
+        },
+        deps,
+      ),
+    (err: unknown) =>
+      err instanceof ToolError &&
+      err.code === "invalid_state" &&
+      err.message.includes(String(MAX_EXCERPT_CHARS)) &&
+      /Pass 1 is signals-only/.test(err.message),
+  );
+  await assert.rejects(
+    () =>
+      handleRunPack(
+        {
+          pack_id: "code_audit",
+          state: {
+            path: "src/a.ts",
+            signals: { top_imports: Array.from({ length: MAX_TOP_IMPORTS + 1 }, (_, i) => `mod${i}`) },
+          },
+        },
+        deps,
+      ),
+    (err: unknown) => err instanceof ToolError && err.code === "invalid_state" && /top_imports/.test(err.message),
   );
   assert.equal(called, false);
+});
+
+test("code_audit accepts signals-only path (Pass 1) and a short Pass-2 excerpt", async () => {
+  const config = loadConfig({ TYPESAFE_API_KEY: "test-key" });
+  const deps = {
+    config,
+    systemOne: async () =>
+      ({
+        model: "jev-latest",
+        answers: modeAAnswers(),
+        usage: { input_tokens: 4, output_tokens: 2 },
+      }) as SystemOneResult<Questions>,
+  };
+  const pass1 = await handleRunPack({ pack_id: "code_audit", state: { path: "src/a.ts" } }, deps);
+  assert.equal(pass1.pack_id, "code_audit");
+  const pass2 = await handleRunPack(
+    {
+      pack_id: "code_audit",
+      state: { path: "src/a.ts", excerpt: "export const x = 1;" },
+    },
+    deps,
+  );
+  assert.equal(pass2.pack_id, "code_audit");
 });

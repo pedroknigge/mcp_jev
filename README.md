@@ -205,26 +205,29 @@ Example thresholds: request review if any Noul ≥ 0.65; block if `security.noul
 
 ### `code_audit` (full-repo / per-file scan)
 
-Structured engineering audit (layering / blast-radius / verification style checks). **Jev must not receive the whole monorepo as prose.** The harness owns 100% coverage:
+Millisecond-tier structured engineering audit (layering / blast-radius / verification style checks). **Expect ~network RTT per file; parallelize N workers.** This is not a multi-second LLM review. Jev must not receive the monorepo as prose.
 
-1. List files. Filter screenshots, binaries, and generated/vendor dirs.
-2. For each remaining file, truncate an excerpt (caller-owned cap, e.g. ≤4k chars; chunk if needed).
-3. Parallel `run_pack` `code_audit` with a closed per-file state (`path` + `excerpt` + optional `signals`).
-4. Aggregate in code: top `problem_severity`, most frequent high Nouls, files whose `primary_concern` is not `none`.
+**Pass 1 (default, all files):** harness lists files → filter screenshots/binaries/generated vendor dirs → compact `signals` only → parallel `run_pack` `code_audit` → aggregate top `problem_severity` / most frequent Nouls.
 
-Example gate (`src/policy-examples.ts` `gateCodeAudit`): `ok` | `glance` | `deep_review` from Noul probs + severity. Unit-test the gate without a TypeSafe key.
+**Pass 2 (top-N only):** resend the hottest files with a short `excerpt` (hard max 1200 chars; oversized → `invalid_state`) for confirmation.
+
+Example gate (`src/policy-examples.ts` `gateCodeAudit`): `ok` | `glance` | `deep_review`. Unit-test the gate without a TypeSafe key.
+
+Pass 1 state (no body):
 
 ```json
 {
   "path": "src/billing/invoice-total.ts",
   "language": "ts",
   "role_hint": "domain",
-  "excerpt": "export function invoiceTotal(lines) { return lines.reduce((s, l) => s + l.price * l.qty, 0); }",
   "signals": {
     "loc": 12,
+    "import_count": 1,
+    "top_imports": ["money"],
     "has_tests_nearby": false,
     "touches_money": true,
-    "is_generated": false
+    "is_generated": false,
+    "complexity_heuristic": 2
   },
   "repo_context": "Billing module: invoice line totals."
 }
@@ -343,7 +346,7 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 | --- | --- | --- |
 | `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. Jev does not merge or comment |
 | `review_diff` | Nouls correctness / security / reliability / compat / test_gap; Choice `hotspot_file` from `files[]`; Score `severity` | Orchestration stays in the caller |
-| `code_audit` | Per-file Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Harness fans out 100% of files (truncate excerpts). Aggregate + `gateCodeAudit` in code. Optional Mode B `hotspot_file` from `files[]` |
+| `code_audit` | Per-file Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Pass 1: signals-only, ~RTT per file, N workers. Pass 2: short excerpt on top-N. Aggregate + `gateCodeAudit` in code |
 | `skill_router` | Noul `needs_skill`; Choice `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. Thresholds in your code |
 | `command_risk` | Nouls `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. Signals only |
 | `intent_router` | Closed intent Choice, jailbreak + policy Nouls, urgency Score | Route / refuse / hand off in code |
