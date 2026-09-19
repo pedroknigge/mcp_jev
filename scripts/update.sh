@@ -64,30 +64,19 @@ exec node "$ENTRY" "$@"
 WRAP
 chmod 755 "$WRAPPER"
 
-if [[ "${MCP_JEV_SYNC_SKILL:-}" == "1" ]]; then
-  SKILL_SRC="$REPO_HOME/skills/mcp_jev"
-  if [[ -d "$SKILL_SRC" && -d "$REPO_HOME/.cursor/skills" ]]; then
-    rm -rf "$REPO_HOME/.cursor/skills/mcp_jev"
-    cp -R "$SKILL_SRC" "$REPO_HOME/.cursor/skills/mcp_jev"
-    echo "Synced skill → $REPO_HOME/.cursor/skills/mcp_jev"
-  elif [[ -d "$SKILL_SRC" && -d "${HOME}/.cursor/skills" ]]; then
-    rm -rf "${HOME}/.cursor/skills/mcp_jev"
-    cp -R "$SKILL_SRC" "${HOME}/.cursor/skills/mcp_jev"
-    echo "Synced skill → ${HOME}/.cursor/skills/mcp_jev"
-  else
-    echo "MCP_JEV_SYNC_SKILL=1 but no .cursor/skills at $REPO_HOME or \$HOME — skipped copy."
-  fi
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/refresh-skill.sh" ]]; then
+  bash "$SCRIPT_DIR/refresh-skill.sh" "$REPO_HOME"
 fi
 
 echo "Done. Restart your MCP host, then ping → list_packs."
 echo ""
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-echo "SKILL REFRESH — hosts do not auto-reload skills after pull."
-echo "Agents: re-load the skill from this checkout, or re-add it."
+echo "SKILL REFRESH — one path only (already ran): ~/.agents/skills/mcp_jev"
+echo "Do not also copy the skill folder (nests mcp_jev/mcp_jev)."
+echo "Hosts that ignore ~/.agents/skills: re-add once after update:"
 echo ""
 echo "  npx skills add pedroknigge/mcp_jev --skill mcp_jev"
 echo ""
-echo "  # or copy (do not write into random projects):"
-echo "  cp -R \"$REPO_HOME/skills/mcp_jev\" .cursor/skills/mcp_jev"
+echo "Description always starts with VERSION — (package.json)."
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 echo "Docs: https://github.com/pedroknigge/mcp_jev"

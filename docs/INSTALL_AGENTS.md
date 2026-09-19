@@ -27,7 +27,7 @@ The script stores `TYPESAFE_API_KEY` **once** in `~/.mcp_jev/.env` (chmod 600). 
 
 `MCP_JEV_HOME` (default `~/.mcp_jev`) is the **user config dir** (key + wrapper). Checkout defaults to `~/mcp_jev`, or the repo you ran the script from (`cd $HOME/mcp_jev && ./scripts/install.sh`). Optional `MCP_JEV_CHECKOUT` overrides the clone path. `MCP_JEV_CONFIG` is an alias for `MCP_JEV_HOME`.
 
-Update from GitHub (not npm): `~/mcp_jev/scripts/update.sh` — pull + build; **does not** touch the key. Restart the host. Then reload the skill (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`). Versioning: [RELEASES.md](RELEASES.md).
+Update from GitHub (not npm): `~/mcp_jev/scripts/update.sh` — pull + build; **does not** touch the key; refreshes the skill **once** to `~/.agents/skills/mcp_jev`. Restart the host. Hosts that ignore that path: re-add **once** with `npx skills add pedroknigge/mcp_jev --skill mcp_jev` (do not also copy). Versioning: [RELEASES.md](RELEASES.md).
 
 This package is **stdio only**. Do not pick HTTP/SSE/URL in host UIs.
 
@@ -42,7 +42,7 @@ This package is **stdio only**. Do not pick HTTP/SSE/URL in host UIs.
 
 ## Cursor
 
-`.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (user). Skill: `npx skills add pedroknigge/mcp_jev --skill mcp_jev`
+`.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (user). Skill: `install.sh` refreshes `~/.agents/skills/mcp_jev` once. If you skipped the script: `npx skills add pedroknigge/mcp_jev --skill mcp_jev` (do not also copy).
 
 Cloud Agents do not inherit laptop `~/.cursor/mcp.json`. Register MCP in the team dashboard or have the agent run the install script in the VM.
 
@@ -85,9 +85,13 @@ Same wrapper command. Zed: `context_servers` in `~/.config/zed/settings.json`. C
 
 ## Skill
 
+`install.sh` / `update.sh` refresh **once** to `~/.agents/skills/mcp_jev`. Description always `VERSION — …`. If you skipped the script, pick **one**:
+
 ```bash
 npx skills add pedroknigge/mcp_jev --skill mcp_jev
 ```
+
+Do not also copy the skill folder (nests `mcp_jev/mcp_jev`).
 
 **Say this to your agent:**  
 Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using the install script and skill.

@@ -9,11 +9,14 @@ Model-universal skill for **mcp_jev** (TypeSafe Jev / System One packs).
 
 ## Install the skill
 
+`scripts/install.sh` / `update.sh` refresh **once** to `~/.agents/skills/mcp_jev`. If you skipped those scripts, pick **one** path (never both):
+
 ```bash
 npx skills add pedroknigge/mcp_jev --skill mcp_jev
+# or: rm -rf ~/.agents/skills/mcp_jev && cp -R skills/mcp_jev ~/.agents/skills/mcp_jev
 ```
 
-Or copy `skills/mcp_jev` to `.cursor/skills/mcp_jev`, `.claude/skills/mcp_jev`, or `~/.cursor/skills`.
+Do not copy into a dest that already contains `mcp_jev` (nests `mcp_jev/mcp_jev`). Frontmatter `description` always starts with `VERSION — ` (`package.json` version + em dash).
 
 This is **not** the official TypeSafe authoring skill (`npx skills add typesafe-ai/skills --skill typesafe-ai`).
 
@@ -31,11 +34,10 @@ mcp_jev smoke           # stdio initialize / tools / ping / list_packs (no TypeS
 
 Then paste the printed MCP snippets (or `mcp_jev hosts write`) and restart the host.
 
-After `update.sh`, **re-add or copy this skill** — hosts do not auto-reload it:
+After `update.sh`, the skill is refreshed **once** to `~/.agents/skills/mcp_jev`. Hosts that do not read that path: re-add **once** (do not also copy):
 
 ```bash
 npx skills add pedroknigge/mcp_jev --skill mcp_jev
-# or: cp -R skills/mcp_jev .cursor/skills/mcp_jev
 ```
 
 `npm test` fails if a pack or question id is missing from `SKILL.md` / `references/pack-catalog.md`.

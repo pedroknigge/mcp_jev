@@ -32,3 +32,10 @@ These loops stay in the **caller**. Jev only returns Choice / Noul / Score.
 | Per-turn cheap vs strong | Invent Choice `route` over **your** lanes plus refuse; Nouls for tools/irreversible as needed; Score `difficulty` | `model_router` **only if** heads match exactly (`fast_local` \| `strong_reasoner` \| `tools_heavy` \| `ask_user` \| `skip` + pack Nouls). Custom lane ids (e.g. `cheap_local` / `tools_cascade`) or different Nouls (`needs_shell_tools`, `irreversible_side_effect`) → **`run_questions`** ([CUSTOM_JUDGMENTS.md](CUSTOM_JUDGMENTS.md#recipe-model-route-via-run_questions)). Call at **turn start**, map `route.choice` in **code**. Do not invent a sixth **pack** lane. |
 
 More custom recipes: [CUSTOM_JUDGMENTS.md](CUSTOM_JUDGMENTS.md). Pack catalog: [`references/pack-catalog.md`](../skills/mcp_jev/references/pack-catalog.md).
+
+## Bi-hourly dogfood notes
+
+Standing checks when dogfooding this repo (mcp_jev is the template for Pedro skills):
+
+1. **Version prefix required.** `skills/mcp_jev/SKILL.md` frontmatter `description` always `VERSION — …` (must start with `${package.json version} — `, em dash). Example: `0.0.9 — Install, update, and call…`. `npx tsx scripts/sync-skill-catalog.ts --check` / `npm test` fail if it drifts.
+2. **One skill refresh path.** After `scripts/update.sh` / `install.sh`, the skill is refreshed **once** to `~/.agents/skills/mcp_jev` (`scripts/refresh-skill.sh`; replaces that folder; never nests `mcp_jev/mcp_jev`). Do **not** also run `npx skills add` or `cp` in the same pass. Hosts that do not read `~/.agents/skills` re-add **once** with `npx skills add pedroknigge/mcp_jev --skill mcp_jev`.

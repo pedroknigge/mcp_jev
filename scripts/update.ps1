@@ -48,34 +48,20 @@ $wrapper = Join-Path $configDir "bin\mcp_jev.cmd"
   "node `"%REPO%\dist\index.js`" %*"
 ) | Set-Content -Path $wrapper -Encoding ASCII
 
-if ($env:MCP_JEV_SYNC_SKILL -eq "1") {
-  $skillSrc = Join-Path $repoHome "skills\mcp_jev"
-  $repoSkills = Join-Path $repoHome ".cursor\skills"
-  $userSkills = Join-Path $HOME ".cursor\skills"
-  if ((Test-Path $skillSrc) -and (Test-Path $repoSkills)) {
-    $dest = Join-Path $repoSkills "mcp_jev"
-    if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-    Copy-Item -Recurse $skillSrc $dest
-    Write-Host "Synced skill → $dest"
-  } elseif ((Test-Path $skillSrc) -and (Test-Path $userSkills)) {
-    $dest = Join-Path $userSkills "mcp_jev"
-    if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-    Copy-Item -Recurse $skillSrc $dest
-    Write-Host "Synced skill → $dest"
-  } else {
-    Write-Host "MCP_JEV_SYNC_SKILL=1 but no .cursor\skills at $repoHome or `$HOME — skipped copy."
-  }
+$refresh = Join-Path $scriptDir "refresh-skill.ps1"
+if (Test-Path $refresh) {
+  & $refresh $repoHome
 }
 
 Write-Host "Done. Restart your MCP host, then ping → list_packs."
 Write-Host ""
 Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-Write-Host "SKILL REFRESH — hosts do not auto-reload skills after pull."
-Write-Host "Agents: re-load the skill from this checkout, or re-add it."
+Write-Host "SKILL REFRESH — one path only (already ran): ~/.agents/skills/mcp_jev"
+Write-Host "Do not also copy the skill folder (nests mcp_jev/mcp_jev)."
+Write-Host "Hosts that ignore ~/.agents/skills: re-add once after update:"
 Write-Host ""
 Write-Host "  npx skills add pedroknigge/mcp_jev --skill mcp_jev"
 Write-Host ""
-Write-Host "  # or copy (do not write into random projects):"
-Write-Host "  Copy-Item -Recurse `"$repoHome\skills\mcp_jev`" .cursor\skills\mcp_jev"
+Write-Host "Description always starts with VERSION — (package.json)."
 Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 Write-Host "Docs: https://github.com/pedroknigge/mcp_jev"

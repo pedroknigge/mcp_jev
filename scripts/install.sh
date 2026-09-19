@@ -168,19 +168,8 @@ else
   say "Merge the snippets above, or re-run with MCP_JEV_WRITE_HOSTS=all (or cursor,claude_desktop,claude_code,codex,grok,antigravity)."
 fi
 
-if [[ "${MCP_JEV_SYNC_SKILL:-}" == "1" ]]; then
-  SKILL_SRC="$REPO_HOME/skills/mcp_jev"
-  if [[ -d "$SKILL_SRC" && -d "$REPO_HOME/.cursor/skills" ]]; then
-    rm -rf "$REPO_HOME/.cursor/skills/mcp_jev"
-    cp -R "$SKILL_SRC" "$REPO_HOME/.cursor/skills/mcp_jev"
-    say "Synced skill → $REPO_HOME/.cursor/skills/mcp_jev"
-  elif [[ -d "$SKILL_SRC" && -d "${HOME}/.cursor/skills" ]]; then
-    rm -rf "${HOME}/.cursor/skills/mcp_jev"
-    cp -R "$SKILL_SRC" "${HOME}/.cursor/skills/mcp_jev"
-    say "Synced skill → ${HOME}/.cursor/skills/mcp_jev"
-  else
-    say "MCP_JEV_SYNC_SKILL=1 but no .cursor/skills at $REPO_HOME or \$HOME — skipped copy."
-  fi
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/refresh-skill.sh" ]]; then
+  bash "$SCRIPT_DIR/refresh-skill.sh" "$REPO_HOME"
 fi
 
 say ""
@@ -189,13 +178,13 @@ say "Smoke (no TypeSafe call): $REPO_HOME/scripts/verify-mcp.sh"
 say "Update later (GitHub checkout, not npm):  $REPO_HOME/scripts/update.sh"
 say ""
 say "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-say "SKILL REFRESH — hosts do not auto-reload skills after pull."
-say "Agents: re-load the skill from this checkout, or re-add it."
+say "SKILL REFRESH — one path only (already ran): ~/.agents/skills/mcp_jev"
+say "Do not also copy the skill folder (nests mcp_jev/mcp_jev)."
+say "Hosts that ignore ~/.agents/skills: re-add once after update:"
 say ""
 say "  npx skills add pedroknigge/mcp_jev --skill mcp_jev"
 say ""
-say "  # or copy (do not write into random projects):"
-say "  cp -R \"$REPO_HOME/skills/mcp_jev\" .cursor/skills/mcp_jev"
+say "Description always starts with VERSION — (package.json)."
 say "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 say "Docs: https://github.com/pedroknigge/mcp_jev"
 say "Do not put the key in chat or in mcp.json."
