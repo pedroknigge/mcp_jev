@@ -2,7 +2,9 @@
 
 mcp_jev is a small, local MCP server. Keep the surface closed: **no free-form `ask_jev` tool**. New work should be a better pack, a clearer error, or a more accurate doc — not another API wrapper.
 
-Live TypeSafe docs are the source of truth: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Do not invent request or response fields.
+Live TypeSafe docs are the source of truth for the API: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Do not invent request or response fields.
+
+This repo is the source of truth for **how agents install and call** the four tools: [README.md](README.md) (Install for agents & IDEs), [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md), and [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md). If you add a pack or a tool, update those three.
 
 ## Setup
 

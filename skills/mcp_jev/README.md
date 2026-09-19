@@ -1,20 +1,29 @@
 # mcp_jev skill
 
-Agent skill for the local **mcp_jev** MCP server (TypeSafe Jev / System One packs).
+Model-universal agent skill for the local **mcp_jev** MCP server (TypeSafe Jev / System One packs).
 
-- Full instructions: [`SKILL.md`](./SKILL.md)
+- Instructions (any model): [`SKILL.md`](./SKILL.md)
+- Host copy-paste configs: [`references/install.md`](./references/install.md)
 - Server README: [`../../README.md`](../../README.md)
+- Deep dive: [`../../docs/INSTALL_AGENTS.md`](../../docs/INSTALL_AGENTS.md)
 
-## Install
+## Install the skill
 
-**Copy into the project** (works in Cursor and most agents):
+**Copy into the project** (Cursor and most agents):
 
 ```bash
 mkdir -p .cursor/skills
 cp -R skills/mcp_jev .cursor/skills/mcp_jev
 ```
 
-Or copy `skills/mcp_jev` into your agent's skills directory (`~/.cursor/skills`, `.claude/skills`, etc.).
+Claude Code / Desktop-adjacent:
+
+```bash
+mkdir -p .claude/skills
+cp -R skills/mcp_jev .claude/skills/mcp_jev
+```
+
+Or copy `skills/mcp_jev` into the host's user skills directory (`~/.cursor/skills`, `~/.claude/skills`, `~/.codex/skills`, …).
 
 **skills.sh style** (when this repo is the skill source):
 
@@ -29,3 +38,7 @@ This skill is **not** the official TypeSafe skill. That one teaches you to desig
 ```bash
 npx skills add typesafe-ai/skills --skill typesafe-ai
 ```
+
+## Install the MCP server
+
+The skill does not start Jev. Register the stdio server in the host (absolute `node $REPO_PATH/dist/index.js`, plus `TYPESAFE_API_KEY` in `env`). See `SKILL.md` and `references/install.md`.

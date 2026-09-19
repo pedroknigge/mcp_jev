@@ -10,9 +10,11 @@
   "files": [
     "dist",
     "skills",
+    "docs",
     "README.md",
     "LICENSE",
-    "CONTRIBUTING.md"
+    "CONTRIBUTING.md",
+    ".env.example"
   ],
   "scripts": {
     "build": "tsc",
