@@ -11,6 +11,9 @@ export type CatalogItem = {
   id: string;
   role: string;
   label: string;
+  name?: string;
+  value?: string;
+  state?: string;
   region?: string;
   source?: string;
 };
@@ -32,6 +35,15 @@ export function readCatalogItems(value: unknown): CatalogItem[] {
 
 export function formatCatalogItem(item: CatalogItem): string {
   const parts = [`role=${item.role}`, `label=${item.label}`];
+  if (item.name) {
+    parts.push(`name=${item.name}`);
+  }
+  if (item.value) {
+    parts.push(`value=${item.value}`);
+  }
+  if (item.state) {
+    parts.push(`state=${item.state}`);
+  }
   if (item.region) {
     parts.push(`region=${item.region}`);
   }

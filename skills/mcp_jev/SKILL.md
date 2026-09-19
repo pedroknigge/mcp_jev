@@ -93,11 +93,10 @@ If the user wants a question that is not in a pack, say this server cannot do th
 
 Harness contract (enforced):
 
-1. Observe in **code** (OCR, accessibility tree, or DOM). Build `items[]` / `offscreen_items[]` with stable ids.
-2. **Never** put screenshots, pixels, or image blobs in state. The pack rejects those keys and data-URI / long base64 blobs (`invalid_state` + structured `details`).
-3. `run_pack` `computer_use_step`. Read additive `guidance`: ignore speculative targets that do not match `operation`; `effective_targets`; `writer_owns_typed_string`.
-4. Execute only the chosen operation. For `type_text` / `type_email`, **you** (or a stored value) write the string. Jev does not.
-5. Stop rules stay in the harness. Example thresholds: stop if `goal_achieved.noul ≥ 0.8` or `operation` is `done`; re-observe if `observation_stale.noul ≥ 0.65` or `step_confidence.score < 1.5`.
+1. Observe in **code** (OCR, accessibility tree, or DOM). Build an **indexed closed catalog** `items[]` / `offscreen_items[]` with stable ids and `role` / `name` / `value` / `state` / `label`. Never put screenshots, pixels, or image blobs in state.
+2. One `systemOne` fan-out: Choice `operation` plus a separate target Choice per op (`click_target`, `type_target`, `offscreen_target`). Each target question **assumes** its operation (independent). Use ONLY `guidance.target_for[operation]` / `effective_targets`. Ignore the other heads.
+3. For `type_text` / `type_email`, a **writer LLM** (or stored value) supplies the string. Jev never invents it (`guidance.writer_owns_typed_string`).
+4. `max_steps` and `max_candidates` are harness stop rules, not MCP side effects. Example thresholds: stop if `goal_achieved.noul ≥ 0.8` or `operation` is `done`; re-observe if `observation_stale.noul ≥ 0.65` or `step_confidence.score < 1.5`.
 
 ## Recipe: `model_router`
 
@@ -122,13 +121,17 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → treat as `ask_u
 
 `pr_audit` is the separate money/hours/migration merge pack. Keep both ids.
 
-## Recipe: `skill_router` / `command_risk` (code-owned policy)
+## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`)
+
+Jev returns signals. **Your functions** decide. Unit-test those functions without a TypeSafe key (`src/policy-examples.ts`).
 
 `skill_router`: Noul `needs_skill` + Choice `skill` from closed `available_skills[]` + Score `change_risk`. Load the skill in the host.
 
 `command_risk`: Nouls `is_destructive` / `touches_credentials` / `scope_matches` + Score `severity`. **Signals only.** Your allowlist and sandbox still run.
 
-Keep thresholds in **your** functions so they are unit-testable without a TypeSafe key. Example: refuse a command if `is_destructive.noul ≥ 0.70` or `scope_matches.noul < 0.50`. Jev does not execute.
+`model_router`: model cascade — map `route.choice` to models/tools in code.
+
+Example (copy into the harness): refuse a command if `is_destructive.noul ≥ 0.70` or `scope_matches.noul < 0.50`. Jev does not execute.
 
 ## Multi-host
 

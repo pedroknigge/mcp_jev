@@ -37,6 +37,13 @@ export type ComputerUseGuidance = {
     type_target: string | null;
     offscreen_target: string | null;
   };
+  /** Stable question ids that are the speculative target head for each operation. */
+  target_for: {
+    click_item: "click_target";
+    type_text: "type_target";
+    type_email: "type_target";
+    press_offscreen: "offscreen_target";
+  };
   screenshots_forbidden: true;
   missing_optional: string[];
   harness_hints: string[];
@@ -102,14 +109,20 @@ export function buildComputerUseGuidance(
       type_target: applyType ? usableTarget(readChoice(answers.type_target)) : null,
       offscreen_target: applyOffscreen ? usableTarget(readChoice(answers.offscreen_target)) : null,
     },
+    target_for: {
+      click_item: "click_target",
+      type_text: "type_target",
+      type_email: "type_target",
+      press_offscreen: "offscreen_target",
+    },
     screenshots_forbidden: true,
     missing_optional: missingOptional(state),
     harness_hints: [
-      "Ignore speculative targets that do not match operation. Use only the target head for the selected op.",
-      "Each target Choice assumes its operation; questions are independent — do not reconcile them yourself.",
+      "One systemOne fan-out: Choice operation plus a separate target Choice per op. Use ONLY guidance.target_for[operation] / effective_targets. Ignore the other target heads.",
+      "Each target Choice assumes its operation (independent questions). Do not reconcile them.",
       "Writer LLM (or a stored value) owns typed strings. Jev never invents type_text / type_email content.",
       "max_steps and max_candidates are harness-owned stop rules, not MCP side effects.",
-      "Never put screenshots or image blobs in state. Pass an indexed closed catalog (role/label/region).",
+      "Never put screenshots or image blobs in state. Pass an indexed closed catalog (role / name / value / state / label).",
     ],
   };
 }

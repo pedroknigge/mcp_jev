@@ -14,6 +14,21 @@ import {
 } from "../src/packs/catalog-choice.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
 
+test("computer_use_step target questions name the assumed operation", () => {
+  const pack = getPack("computer_use_step");
+  assert.ok(pack.questionsForState);
+  const questions = pack.questionsForState(pack.example_state);
+  const byId = Object.fromEntries(questions.map((question) => [question.id, question]));
+  assert.match(byId.click_target.instructions, /Assume `operation` is `click_item`/);
+  assert.match(byId.type_target.instructions, /Assume `operation` is `type_text`/);
+  assert.match(byId.offscreen_target.instructions, /Assume `operation` is `press_offscreen`/);
+  const sdk = questionsFor(pack, pack.example_state);
+  assert.equal(sdk.click_target?.type, "choice");
+  if (sdk.click_target?.type === "choice") {
+    assert.ok(String(sdk.click_target.criteria.email).includes("state=focused"));
+  }
+});
+
 test("computer_use_step builds Choice options from item ids", () => {
   const pack = getPack("computer_use_step");
   const questions = questionsFor(pack, pack.example_state);
@@ -142,6 +157,12 @@ test("run_pack sends materialized target ids to the mocked TypeSafe client", asy
   assert.equal(guidance.effective_targets.click_target, null);
   assert.ok(Array.isArray((result.guidance as { harness_hints: string[] }).harness_hints));
   assert.ok((result.guidance as { harness_hints: string[] }).harness_hints.some((hint) => /writer/i.test(hint)));
+  assert.deepEqual((result.guidance as { target_for: Record<string, string> }).target_for, {
+    click_item: "click_target",
+    type_text: "type_target",
+    type_email: "type_target",
+    press_offscreen: "offscreen_target",
+  });
 });
 
 test("computer_use_step rejects screenshot fields and image blobs", async () => {

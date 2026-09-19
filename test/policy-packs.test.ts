@@ -7,6 +7,7 @@ import { loadConfig } from "../src/config.js";
 import { handleDescribePack, handleRunPack } from "../src/handlers.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
 import { NONE_OPTION } from "../src/packs/catalog-choice.js";
+import { commandRiskGate, skillRouterGate } from "../src/policy-examples.js";
 
 test("skill_router builds skill Choice from available_skills[]", () => {
   const pack = getPack("skill_router");
@@ -85,29 +86,19 @@ test("skill_router and command_risk run through mocked TypeSafe", async () => {
 });
 
 test("code-owned policy gates are unit-testable without TypeSafe", () => {
-  function commandGate(signals: {
-    is_destructive: number;
-    touches_credentials: number;
-    scope_matches: number;
-    severity: number;
-  }): "allow" | "refuse" {
-    if (signals.is_destructive >= 0.7) return "refuse";
-    if (signals.touches_credentials >= 0.6) return "refuse";
-    if (signals.scope_matches < 0.5) return "refuse";
-    if (signals.severity >= 2.5) return "refuse";
-    return "allow";
-  }
-
   assert.equal(
-    commandGate({ is_destructive: 0.1, touches_credentials: 0.1, scope_matches: 0.9, severity: 0.4 }),
+    commandRiskGate({ is_destructive: 0.1, touches_credentials: 0.1, scope_matches: 0.9, severity: 0.4 }),
     "allow",
   );
   assert.equal(
-    commandGate({ is_destructive: 0.8, touches_credentials: 0.1, scope_matches: 0.9, severity: 0.4 }),
+    commandRiskGate({ is_destructive: 0.8, touches_credentials: 0.1, scope_matches: 0.9, severity: 0.4 }),
     "refuse",
   );
   assert.equal(
-    commandGate({ is_destructive: 0.1, touches_credentials: 0.1, scope_matches: 0.2, severity: 0.4 }),
+    commandRiskGate({ is_destructive: 0.1, touches_credentials: 0.1, scope_matches: 0.2, severity: 0.4 }),
     "refuse",
   );
+  assert.equal(skillRouterGate({ needs_skill: 0.8, skill: "mcp_jev", change_risk: 1.2 }), "load");
+  assert.equal(skillRouterGate({ needs_skill: 0.8, skill: "mcp_jev", change_risk: 2.8 }), "ask");
+  assert.equal(skillRouterGate({ needs_skill: 0.2, skill: "mcp_jev", change_risk: 1.0 }), "skip");
 });

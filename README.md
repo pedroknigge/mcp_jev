@@ -136,9 +136,9 @@ Code owns OCR / accessibility / DOM, clicks, and the **writer LLM** for free tex
 
 1. Observe in the harness. Build `items[]` (and optional `offscreen_items[]`) with stable ids. Short `observation_summary`. **No screenshots, pixels, or image blobs in state** (rejected as `invalid_state`).
 2. `run_pack` `computer_use_step` with `goal`, `app_or_url`, that observation, recent `history`, and `flags`.
-3. One `systemOne` call fans out `operation` plus speculative `click_target` / `type_target` / `offscreen_target` plus `goal_achieved`, `observation_stale`, `step_confidence`.
-4. Prefer additive **`guidance`**: `ignore_targets`, `effective_targets`, `writer_owns_typed_string`. Raw `answers` stay intact.
-5. Execute **only** the chosen operation. Ignore speculative targets that do not match `operation`. For `type_text` / `type_email`, a writer LLM (or stored value) supplies the string.
+3. One `systemOne` call fans out `operation` plus a separate target Choice per op (`click_target`, `type_target`, `offscreen_target`) plus `goal_achieved`, `observation_stale`, `step_confidence`. Each target question assumes its operation.
+4. Prefer additive **`guidance`**: `target_for`, `ignore_targets`, `effective_targets`, `writer_owns_typed_string`, `harness_hints`. Raw `answers` stay intact. Use only the target head for the selected operation.
+5. For `type_text` / `type_email`, a writer LLM (or stored value) supplies the string. `max_steps` / `max_candidates` stay in the harness.
 6. Example thresholds (tune on your traces): stop if `goal_achieved.noul ≥ 0.8` or `operation` is `done`; re-observe if `observation_stale.noul ≥ 0.65` or `step_confidence.score < 1.5`.
 
 Example state:
@@ -178,13 +178,13 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Need | Pack |
 | --- | --- |
 | Next GUI step from a closed element catalog | `computer_use_step` |
-| Per-turn compute lane | `model_router` |
-| Load a skill from a closed list | `skill_router` |
-| Risk signals for a proposed shell command | `command_risk` |
+| Model cascade / per-turn compute lane | `model_router` |
+| Skill select from a closed list | `skill_router` |
+| Command risk signals | `command_risk` |
 | Generic diff review | `review_diff` |
 | Money / hours / migration merge risk | `pr_audit` |
 
-Code-owned policy: keep thresholds in **your** functions (unit-test them without a TypeSafe key). Jev returns signals; your gate decides.
+Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
 
 ### `review_diff` (staged review)
 

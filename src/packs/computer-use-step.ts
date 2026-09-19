@@ -48,6 +48,9 @@ const itemSchema = {
       description: "Visible or AX label. Keep short.",
       minLength: 1,
     },
+    name: { type: "string", description: "Optional accessible name if different from label." },
+    value: { type: "string", description: "Optional current value (empty string if blank)." },
+    state: { type: "string", description: "Optional control state, e.g. focused, disabled, selected, expanded." },
     region: { type: "string", description: "Optional region/section, e.g. toolbar, dialog, list." },
     source: { type: "string", description: "Optional origin, e.g. ax, ocr, dom, compose." },
   },
@@ -78,21 +81,21 @@ function targetQuestions(state: Record<string, unknown>): PackQuestion[] {
       type: "choice",
       id: "click_target",
       instructions:
-        "If `operation` is `click_item`, which `items[].id` should be clicked? Options are the closed catalog in `items` (plus `none`). Ignore this answer when `operation` is not `click_item`.",
+        "Assume `operation` is `click_item` (this question is independent of the operation Choice). Which `items[].id` should be clicked? Options are the closed catalog in `items` (plus `none`). The harness uses this answer ONLY when the operation Choice is `click_item`; ignore it otherwise.",
       criteria: clickCriteria,
     },
     {
       type: "choice",
       id: "type_target",
       instructions:
-        "If `operation` is `type_text` or `type_email`, which `items[].id` should receive text? Options are the closed catalog in `items` (plus `none`). Ignore this answer for other operations. Jev does not generate the typed string.",
+        "Assume `operation` is `type_text` or `type_email` (this question is independent of the operation Choice). Which `items[].id` should receive text? Options are the closed catalog in `items` (plus `none`). Jev does not generate the typed string — a writer LLM in the harness does. The harness uses this answer ONLY for those operations.",
       criteria: typeCriteria,
     },
     {
       type: "choice",
       id: "offscreen_target",
       instructions:
-        "If `operation` is `press_offscreen`, which `offscreen_items[].id` should be used? Options are the closed catalog in `offscreen_items` (plus `none`). Ignore this answer for other operations.",
+        "Assume `operation` is `press_offscreen` (this question is independent of the operation Choice). Which `offscreen_items[].id` should be used? Options are the closed catalog in `offscreen_items` (plus `none`). The harness uses this answer ONLY when the operation Choice is `press_offscreen`.",
       criteria: offscreenCriteria,
     },
     ...sharedJudgments(),
@@ -228,10 +231,10 @@ export const computerUseStepPack: PackDefinition = {
       "Login form: email field empty and focused, password field empty, primary button Sign in, link Forgot password. No error banner.",
     focused_field: "email",
     items: [
-      { id: "email", role: "textfield", label: "Work email", region: "form", source: "ax" },
-      { id: "password", role: "textfield", label: "Password", region: "form", source: "ax" },
-      { id: "sign_in", role: "button", label: "Sign in", region: "form", source: "ax" },
-      { id: "forgot", role: "link", label: "Forgot password", region: "form", source: "dom" },
+      { id: "email", role: "textfield", label: "Work email", name: "email", value: "", state: "focused", region: "form", source: "ax" },
+      { id: "password", role: "textfield", label: "Password", name: "password", value: "", state: "empty", region: "form", source: "ax" },
+      { id: "sign_in", role: "button", label: "Sign in", name: "Sign in", state: "enabled", region: "form", source: "ax" },
+      { id: "forgot", role: "link", label: "Forgot password", name: "Forgot password", region: "form", source: "dom" },
     ],
     offscreen_items: [{ id: "privacy", role: "link", label: "Privacy", region: "footer", source: "ax" }],
     history: [{ action: "wait", result: "form_visible" }],
@@ -248,21 +251,21 @@ export const computerUseStepPack: PackDefinition = {
       type: "choice",
       id: "click_target",
       instructions:
-        "If `operation` is `click_item`, which `items[].id` should be clicked? run_pack builds options from the closed `items` catalog.",
+        "Assume `operation` is `click_item` (independent question). Which `items[].id` should be clicked? run_pack builds options from the closed `items` catalog.",
       criteria: { ...TEMPLATE_TARGET_CRITERIA },
     },
     {
       type: "choice",
       id: "type_target",
       instructions:
-        "If `operation` is `type_text` or `type_email`, which `items[].id` should receive text? run_pack builds options from `items`.",
+        "Assume `operation` is `type_text` or `type_email` (independent question). Which `items[].id` should receive text? run_pack builds options from `items`. Jev does not write the string.",
       criteria: { ...TEMPLATE_TARGET_CRITERIA },
     },
     {
       type: "choice",
       id: "offscreen_target",
       instructions:
-        "If `operation` is `press_offscreen`, which `offscreen_items[].id` should be used? run_pack builds options from `offscreen_items`.",
+        "Assume `operation` is `press_offscreen` (independent question). Which `offscreen_items[].id` should be used? run_pack builds options from `offscreen_items`.",
       criteria: { ...TEMPLATE_TARGET_CRITERIA },
     },
     ...sharedJudgments(),
