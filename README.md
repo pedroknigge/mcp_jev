@@ -398,20 +398,17 @@ Update from the **GitHub checkout**, not npm:
 
 Do not `npm update -g mcp_jev` or `npx mcp_jev@latest`. Public versions are GitHub Releases (`v0.0.9` onward). Scheme: [docs/RELEASES.md](docs/RELEASES.md).
 
-Restart the MCP host. Then **reload the skill** (hosts do not auto-reload it):
+Restart the MCP host. `update.sh` refreshes the skill **once** to `~/.agents/skills/mcp_jev`. Hosts that do not read that path: re-add **once** (do not also copy — nests `mcp_jev/mcp_jev`):
 
 ```bash
 npx skills add pedroknigge/mcp_jev --skill mcp_jev
-# or: cp -R ~/mcp_jev/skills/mcp_jev .cursor/skills/mcp_jev
 ```
 
 ## Skill stays in sync
 
-The agent skill lives in-repo at [`skills/mcp_jev/SKILL.md`](skills/mcp_jev/SKILL.md). `scripts/update.sh` pulls that folder with the rest of the checkout; **hosts still need a re-add or copy**.
+The agent skill lives in-repo at [`skills/mcp_jev/SKILL.md`](skills/mcp_jev/SKILL.md). Frontmatter `description` **always** starts with `VERSION — ` (the `package.json` version + em dash). `npx tsx scripts/sync-skill-catalog.ts` / `npm test` fail if it drifts. This is the template for Pedro skills.
 
-- Re-add: `npx skills add pedroknigge/mcp_jev --skill mcp_jev`
-- Or copy: `cp -R skills/mcp_jev .cursor/skills/mcp_jev` (only into a project you mean to update)
-- Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cursor/skills` or `~/.cursor/skills` if that directory already exists
+`scripts/update.sh` pulls the checkout and refreshes the skill **once** to `~/.agents/skills/mcp_jev` (replaces that folder; never nests). Hosts that do not read that path: re-add **once** with `npx skills add pedroknigge/mcp_jev --skill mcp_jev`. Do not also copy.
 
 Exact pack ids / question ids / state fields: [`skills/mcp_jev/references/pack-catalog.md`](skills/mcp_jev/references/pack-catalog.md) (generated from `src/packs/`). `npm test` fails if a new pack or question id is missing from the skill or that catalog.
 
@@ -419,7 +416,7 @@ Exact pack ids / question ids / state fields: [`skills/mcp_jev/references/pack-c
 
 > Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using the install script and skill. Then run doctor, ping, and list_packs.
 
-Or: `npx skills add pedroknigge/mcp_jev --skill mcp_jev` then run `scripts/install.sh`, paste the printed snippets, restart, `doctor` → `ping` → `list_packs`.
+Or: run `scripts/install.sh` (refreshes the skill once to `~/.agents/skills/mcp_jev`), paste the printed snippets, restart, `doctor` → `ping` → `list_packs`. Do not also `npx skills add` in the same pass.
 
 ## Install for agents & IDEs
 
@@ -447,7 +444,7 @@ Print or merge snippets: `mcp_jev hosts print` · `mcp_jev hosts write all`.
 
 Project: `.cursor/mcp.json` · User: `~/.cursor/mcp.json` (project wins on name clash).
 
-Skill: `npx skills add pedroknigge/mcp_jev --skill mcp_jev` or `cp -R skills/mcp_jev .cursor/skills/mcp_jev`.
+Skill: `install.sh` refreshes `~/.agents/skills/mcp_jev` once. If you skipped the script, pick **one**: `npx skills add pedroknigge/mcp_jev --skill mcp_jev` **or** `rm -rf ~/.agents/skills/mcp_jev && cp -R skills/mcp_jev ~/.agents/skills/mcp_jev`. Never both.
 
 ### Claude Desktop
 
@@ -560,7 +557,7 @@ flowchart LR
 | `MCP_JEV_CONFIG` | No | Alias for `MCP_JEV_HOME` |
 | `MCP_JEV_CHECKOUT` | No | Git checkout (default `~/mcp_jev` or the repo you ran the script from) |
 | `MCP_JEV_WRITE_HOSTS` | No | Install-time host write (`all` or comma list) |
-| `MCP_JEV_SYNC_SKILL` | No | If `1`, install/update copy `skills/mcp_jev` into an existing `.cursor/skills` dir |
+| `MCP_JEV_SKILL_HOME` | No | Dest for the one skill refresh (default `~/.agents/skills/mcp_jev`) |
 | `MCP_JEV_SCAN_CONCURRENCY` | No | Default parallel workers for `mcp_jev scan` (8; 16–32 typical for multi-k / 6000-files class) |
 
 Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.

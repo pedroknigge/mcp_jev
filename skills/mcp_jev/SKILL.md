@@ -1,7 +1,7 @@
 ---
 name: mcp_jev
 description: >
-  Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
+  0.0.9 — Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
   mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, PR audit, review
   diff, code audit, verify gap, boundary check, file audit, i18n / hardcoded UI copy, intent routing, locale/country, computer-use /
@@ -51,28 +51,26 @@ If `doctor` is not ready: `mcp_jev config set-key`, then doctor again. Never pas
 
 Do **not** invent `ask_jev` or pretend Jev ran. Tell the user to install from the GitHub repo (first-run script above).
 
-1. **Skill** (so the next session knows the contract):
+1. **Skill + server:** `scripts/install.sh` stores **one** TypeSafe key in `~/.mcp_jev/.env` (chmod 600), prints **keyless** snippets, and refreshes the skill **once** to `~/.agents/skills/mcp_jev`. Frontmatter `description` always starts with `VERSION — ` (`package.json` version + em dash). If you are **not** running the script, pick **one** path (never both):
    ```bash
    npx skills add pedroknigge/mcp_jev --skill mcp_jev
-   # or: cp -R skills/mcp_jev .cursor/skills/mcp_jev   # also .claude/skills
+   # or: rm -rf ~/.agents/skills/mcp_jev && cp -R skills/mcp_jev ~/.agents/skills/mcp_jev
    ```
-2. **Server:** `scripts/install.sh` stores **one** TypeSafe key in `~/.mcp_jev/.env` (chmod 600) and prints **keyless** snippets.
-3. **Host config:** paste or `mcp_jev hosts write all`. Command = `~/.mcp_jev/bin/mcp_jev`.
-4. Restart the host. Call **`ping`**, then **`list_packs`**.
+   Do **not** also copy after `npx skills add` (nests `mcp_jev/mcp_jev`).
+2. **Host config:** paste or `mcp_jev hosts write all`. Command = `~/.mcp_jev/bin/mcp_jev`.
+3. Restart the host. Call **`ping`**, then **`list_packs`**.
 
-Update later from this GitHub checkout (not npm): `~/mcp_jev/scripts/update.sh` (preserves the key) → **reload this skill** → restart host.
+Update later from this GitHub checkout (not npm): `~/mcp_jev/scripts/update.sh` (preserves the key) → skill refreshed **once** → restart host.
 
-### After `update.sh` — reload this skill
+### After `update.sh` — reload this skill once
 
-Pull updates `skills/mcp_jev` in the checkout. **Hosts do not auto-reload skills.** Re-load from the checkout or re-add:
+`update.sh` pulls `skills/mcp_jev` and refreshes **one** path: `~/.agents/skills/mcp_jev` (replaces that folder; never nests). **Hosts do not always auto-reload.** If your host does not read `~/.agents/skills`, re-add **once**:
 
 ```bash
 npx skills add pedroknigge/mcp_jev --skill mcp_jev
-# or copy (only into a project you mean to update — do not write into random trees):
-cp -R "$REPO_HOME/skills/mcp_jev" .cursor/skills/mcp_jev   # also .claude/skills
 ```
 
-Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cursor/skills/mcp_jev` or `~/.cursor/skills/mcp_jev` **only if that `.cursor/skills` directory already exists**.
+Do **not** also copy the skill folder. Description always starts with `VERSION — ` (from `package.json`).
 
 ### Say this to your agent
 
@@ -656,7 +654,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 | `MCP_JEV_CONFIG` | Alias for `MCP_JEV_HOME` |
 | `MCP_JEV_CHECKOUT` | Git checkout (default `~/mcp_jev`) |
 | `MCP_JEV_WRITE_HOSTS` | Optional install-time host write |
-| `MCP_JEV_SYNC_SKILL` | If `1`, `install.sh` / `update.sh` copy `skills/mcp_jev` into an **existing** `$REPO_HOME/.cursor/skills` or `~/.cursor/skills` |
+| `MCP_JEV_SKILL_HOME` | Optional dest for the one skill refresh (default `~/.agents/skills/mcp_jev`) |
 | `MCP_JEV_SCAN_CONCURRENCY` | Default parallel workers for `mcp_jev scan` (default 8; 16–32 typical for 6000-files class) |
 | `TYPESAFE_BASE_URL` / `JEV_MODEL` / `TYPESAFE_DEFAULT_MODEL` | Optional |
 

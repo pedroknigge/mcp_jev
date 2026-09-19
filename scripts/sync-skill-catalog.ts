@@ -1,5 +1,6 @@
 /**
- * Generate skills/mcp_jev/references/pack-catalog.md from live pack metadata.
+ * Generate skills/mcp_jev/references/pack-catalog.md from live pack metadata
+ * and keep SKILL.md frontmatter description prefixed with `${package.json version} — `.
  * Usage: npx tsx scripts/sync-skill-catalog.ts [--check]
  */
 import fs from "node:fs";
@@ -10,6 +11,53 @@ import { allPacks } from "../src/packs/registry.js";
 import type { JsonSchema, PackDefinition, PackQuestion } from "../src/packs/types.js";
 
 export const CATALOG_REL = "skills/mcp_jev/references/pack-catalog.md";
+export const SKILL_REL = "skills/mcp_jev/SKILL.md";
+
+/** Semver + em dash. Standing rule for Pedro skills (mcp_jev is the template). */
+export const SKILL_VERSION_PREFIX_RE = /^\d+\.\d+\.\d+ — /;
+
+export function readPackageVersion(repoRoot: string): string {
+  const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")) as {
+    version: string;
+  };
+  if (!pkg.version) {
+    throw new Error("package.json missing version");
+  }
+  return pkg.version;
+}
+
+export function skillDescriptionVersionPrefix(version: string): string {
+  return `${version} — `;
+}
+
+export function skillFrontmatterDescriptionFirstLine(skillMd: string): string {
+  const fmMatch = skillMd.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!fmMatch) {
+    throw new Error(`${SKILL_REL} missing YAML frontmatter`);
+  }
+  const descMatch = fmMatch[1].match(/^description:\s*>\s*\r?\n[ \t]*(.*)$/m);
+  if (!descMatch) {
+    throw new Error(`${SKILL_REL} description must be a folded YAML scalar (description: >)`);
+  }
+  return descMatch[1];
+}
+
+export function applySkillDescriptionVersion(skillMd: string, version: string): string {
+  const prefix = skillDescriptionVersionPrefix(version);
+  const fmMatch = skillMd.match(/^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/);
+  if (!fmMatch) {
+    throw new Error(`${SKILL_REL} missing YAML frontmatter`);
+  }
+  const [full, open, fm, close] = fmMatch;
+  const descLineRe = /^(description:\s*>\s*\r?\n)([ \t]*)(.*)$/m;
+  const descMatch = fm.match(descLineRe);
+  if (!descMatch) {
+    throw new Error(`${SKILL_REL} description must be a folded YAML scalar (description: >)`);
+  }
+  const first = `${prefix}${descMatch[3].replace(SKILL_VERSION_PREFIX_RE, "")}`;
+  const nextFm = fm.replace(descLineRe, `${descMatch[1]}${descMatch[2]}${first}`);
+  return skillMd.replace(full, `${open}${nextFm}${close}`);
+}
 
 export type FlatField = {
   path: string;
@@ -123,8 +171,10 @@ export function renderPackCatalog(packs: readonly PackDefinition[] = allPacks())
     "",
     `Registry order (${packs.length}): ${ids.map((id) => `\`${id}\``).join(", ")}.`,
     "",
-    "Agent skill: [`../SKILL.md`](../SKILL.md). After `scripts/update.sh`, re-load that skill",
-    "(`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).",
+    "Agent skill: [`../SKILL.md`](../SKILL.md). Frontmatter description always starts with",
+    "`package.json` version + ` — `. After `scripts/update.sh`, the skill is refreshed **once**",
+    "to `~/.agents/skills/mcp_jev`. Hosts that do not read that path: re-add **once** with",
+    "`npx skills add pedroknigge/mcp_jev --skill mcp_jev`. Do not also copy (nests `mcp_jev/mcp_jev`).",
     "",
   ];
   for (const pack of packs) {
@@ -145,18 +195,37 @@ function main(): void {
   const root = repoRootFromHere();
   const dest = catalogFilePath(root);
   const next = renderPackCatalog(allPacks());
+  const version = readPackageVersion(root);
+  const skillPath = path.join(root, SKILL_REL);
+  const skillPrev = fs.existsSync(skillPath) ? fs.readFileSync(skillPath, "utf8") : "";
+  const skillNext = applySkillDescriptionVersion(skillPrev, version);
   if (process.argv.includes("--check")) {
     const prev = fs.existsSync(dest) ? fs.readFileSync(dest, "utf8") : "";
+    let stale = false;
     if (prev !== next) {
       console.error(`${CATALOG_REL} is stale. Run: npx tsx scripts/sync-skill-catalog.ts`);
+      stale = true;
+    }
+    if (skillPrev !== skillNext) {
+      console.error(
+        `${SKILL_REL} description must start with ${skillDescriptionVersionPrefix(version)}. Run: npx tsx scripts/sync-skill-catalog.ts`,
+      );
+      stale = true;
+    }
+    if (stale) {
       process.exit(1);
     }
     console.log(`${CATALOG_REL} matches pack metadata.`);
+    console.log(`${SKILL_REL} description starts with ${skillDescriptionVersionPrefix(version)}`);
     return;
   }
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.writeFileSync(dest, next);
   console.log(`Wrote ${CATALOG_REL}`);
+  if (skillPrev !== skillNext) {
+    fs.writeFileSync(skillPath, skillNext);
+    console.log(`Wrote ${SKILL_REL} description prefix ${skillDescriptionVersionPrefix(version)}`);
+  }
 }
 
 const invokedAsScript =

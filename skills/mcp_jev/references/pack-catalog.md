@@ -8,8 +8,10 @@ Regenerate: `npx tsx scripts/sync-skill-catalog.ts` (also `npm run sync-skill-ca
 
 Registry order (12): `pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `review_diff`, `code_audit`, `skill_router`, `command_risk`, `verify_gap`, `boundary_check`, `i18n_copy`.
 
-Agent skill: [`../SKILL.md`](../SKILL.md). After `scripts/update.sh`, re-load that skill
-(`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).
+Agent skill: [`../SKILL.md`](../SKILL.md). Frontmatter description always starts with
+`package.json` version + ` — `. After `scripts/update.sh`, the skill is refreshed **once**
+to `~/.agents/skills/mcp_jev`. Hosts that do not read that path: re-add **once** with
+`npx skills add pedroknigge/mcp_jev --skill mcp_jev`. Do not also copy (nests `mcp_jev/mcp_jev`).
 
 ## `pr_audit` 1.1.0
 

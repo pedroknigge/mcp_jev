@@ -16,7 +16,7 @@ Non-interactive without a key writes `~/.mcp_jev/NOT_READY` and exits non-zero.
 }
 ```
 
-Windows: `%USERPROFILE%\.mcp_jev\bin\mcp_jev.cmd`. Update from GitHub (not npm): `scripts/update.sh` (keeps the key). Then reload the skill (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).
+Windows: `%USERPROFILE%\.mcp_jev\bin\mcp_jev.cmd`. Update from GitHub (not npm): `scripts/update.sh` (keeps the key; refreshes the skill once to `~/.agents/skills/mcp_jev`). Hosts that ignore that path: re-add once with `npx skills add pedroknigge/mcp_jev --skill mcp_jev` (do not also copy).
 
 ## Cursor
 

@@ -8,9 +8,14 @@ import { allPacks, listPacks } from "../src/packs/index.js";
 import { SMOKE_TOOLS } from "../src/smoke.js";
 import {
   CATALOG_REL,
+  SKILL_REL,
+  applySkillDescriptionVersion,
   catalogFilePath,
   flattenStateFields,
+  readPackageVersion,
   renderPackCatalog,
+  skillDescriptionVersionPrefix,
+  skillFrontmatterDescriptionFirstLine,
 } from "../scripts/sync-skill-catalog.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -31,10 +36,36 @@ test("generated pack-catalog.md matches live pack metadata", () => {
   );
 });
 
+test("SKILL.md description begins with package.json version + em dash", () => {
+  const version = readPackageVersion(root);
+  const skill = read(SKILL_REL);
+  const first = skillFrontmatterDescriptionFirstLine(skill);
+  const prefix = skillDescriptionVersionPrefix(version);
+  assert.ok(
+    first.startsWith(prefix),
+    `${SKILL_REL} description first line must start with ${JSON.stringify(prefix)}; got ${JSON.stringify(first)}`,
+  );
+  assert.equal(applySkillDescriptionVersion(skill, version), skill);
+});
+
+test("applySkillDescriptionVersion rewrites a stale prefix and stays idempotent", () => {
+  const skill = read(SKILL_REL);
+  const bumped = applySkillDescriptionVersion(skill, "9.9.9");
+  assert.ok(skillFrontmatterDescriptionFirstLine(bumped).startsWith("9.9.9 — "));
+  assert.equal(applySkillDescriptionVersion(bumped, "9.9.9"), bumped);
+  const version = readPackageVersion(root);
+  const restored = applySkillDescriptionVersion(bumped, version);
+  assert.ok(skillFrontmatterDescriptionFirstLine(restored).startsWith(skillDescriptionVersionPrefix(version)));
+});
+
 test("SKILL.md covers every registry pack id and points at the catalog", () => {
   const skill = read("skills/mcp_jev/SKILL.md");
   assert.match(skill, /references\/pack-catalog\.md/);
   assert.match(skill, /npx skills add pedroknigge\/mcp_jev --skill mcp_jev/);
+  assert.match(skill, /VERSION — /);
+  assert.match(skill, /~\/\.agents\/skills\/mcp_jev/);
+  assert.match(skill, /nests `mcp_jev\/mcp_jev`/);
+  assert.doesNotMatch(skill, /MCP_JEV_SYNC_SKILL/);
   assert.match(skill, /list_packs/);
   assert.match(skill, /describe_pack/);
   assert.match(skill, /run_pack/);
@@ -112,6 +143,9 @@ test("docs do not pitch a fixed five-country or one-product story", () => {
 test("README pack table covers the same registry ids", () => {
   const readme = read("README.md");
   assert.match(readme, /## Skill stays in sync/);
+  assert.match(readme, /VERSION — /);
+  assert.match(readme, /~\/\.agents\/skills\/mcp_jev/);
+  assert.doesNotMatch(readme, /MCP_JEV_SYNC_SKILL/);
   for (const pack of listPacks()) {
     assert.ok(readme.includes(`\`${pack.id}\``), `README.md missing pack id ${pack.id}`);
   }
@@ -202,4 +236,12 @@ test("DOGFOOD.md teaches invent-before-list_packs and equal i18n recipes", () =>
   assert.match(dogfood, /effective_targets/);
   assert.match(dogfood, /turn start/);
   assert.match(dogfood, /blind-i18n-example/);
+  assert.match(dogfood, /Bi-hourly dogfood notes/);
+  assert.match(dogfood, /Version prefix required/);
+  assert.match(dogfood, /VERSION — /);
+  assert.match(dogfood, /One skill refresh path/);
+  assert.match(dogfood, /~\/\.agents\/skills\/mcp_jev/);
+  assert.match(dogfood, /nests `mcp_jev\/mcp_jev`/);
+  assert.match(dogfood, /npx skills add pedroknigge\/mcp_jev --skill mcp_jev/);
+  assert.doesNotMatch(dogfood, /MCP_JEV_SYNC_SKILL/);
 });

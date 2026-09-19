@@ -23,6 +23,6 @@ Clone from GitHub and run `scripts/install.sh`. Later updates: `scripts/update.s
 
 ## Cut a release
 
-1. Bump `package.json` / `package-lock.json` on a PR to `main`.
+1. Bump `package.json` / `package-lock.json` on a PR to `main`. Run `npx tsx scripts/sync-skill-catalog.ts` so `SKILL.md` description stays `VERSION — …`.
 2. Merge, then tag `vX.Y.Z` on `main` and open a GitHub Release with notes.
 3. Pushing `v*` runs `.github/workflows/release.yml` (test + GitHub Release if one is not already there). It does **not** publish to npm.
