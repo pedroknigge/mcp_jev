@@ -36,3 +36,39 @@ test("config path prints the override directory", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim(), dir);
 });
+
+test("help lists doctor, scan, smoke, and help", () => {
+  const result = runConfig(["help"], {});
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /mcp_jev doctor/);
+  assert.match(result.stdout, /mcp_jev scan/);
+  assert.match(result.stdout, /mcp_jev smoke/);
+  assert.match(result.stdout, /mcp_jev help/);
+});
+
+test("smoke CLI via index.ts prints ok and does not call TypeSafe", () => {
+  const result = runConfig(["smoke"], { TYPESAFE_API_KEY: "sk-must-not-be-used" });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /mcp_jev smoke: ok/);
+  assert.match(result.stdout, /tools: describe_pack, list_packs, ping, run_pack/);
+  assert.match(result.stdout, /code_audit/);
+  assert.ok(!result.stdout.includes("sk-must-not-be-used"));
+  assert.ok(!result.stderr.includes("sk-must-not-be-used"));
+});
+
+test("smoke runs initialize, tools/list, ping, list_packs without TypeSafe", async () => {
+  const { runSmoke, formatSmokeResult } = await import("../src/smoke.js");
+  const result = await runSmoke({
+    command: process.execPath,
+    args: ["--import", "tsx", "src/index.ts"],
+    cwd: root,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.server, "mcp_jev");
+  assert.deepEqual(result.tools, ["describe_pack", "list_packs", "ping", "run_pack"]);
+  assert.ok(result.packs.includes("code_audit"));
+  assert.ok(result.packs.includes("review_diff"));
+  const text = formatSmokeResult(result);
+  assert.match(text, /mcp_jev smoke: ok/);
+  assert.ok(!text.includes("TYPESAFE_API_KEY"));
+});

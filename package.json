@@ -11,11 +11,10 @@
     "dist",
     "skills",
     "docs",
+    "scripts",
     "README.md",
     "LICENSE",
-    "CONTRIBUTING.md",
-    ".env.example",
-    "scripts"
+    ".env.example"
   ],
   "scripts": {
     "build": "tsc",
@@ -46,6 +45,9 @@
   ],
   "license": "MIT",
   "author": "Pedro Knigge",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@typesafe-ai/sdk": "^0.6.0",

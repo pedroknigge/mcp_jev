@@ -252,6 +252,7 @@ No-args starts the stdio MCP server. Commands (never print the TypeSafe key):
 | `mcp_jev config status` | Paths + `api_key_set` / `api_key_source` (never the secret) |
 | `mcp_jev config path` | Print the user config directory |
 | `mcp_jev scan <path>` | Full-repo `code_audit` Pass 1 (signals-only, parallel). `--dry-run`, `--concurrency N`, `--pass2 N`. Also `node dist/cli.js scan`. |
+| `mcp_jev smoke` | Stdio initialize / tools / ping / list_packs. No TypeSafe call. Same check as `scripts/verify-mcp.sh`. |
 | `mcp_jev help` | Usage |
 
 ## Key is installed once

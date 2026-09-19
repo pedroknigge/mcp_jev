@@ -38,7 +38,7 @@ This package is **stdio only**. Do not pick HTTP/SSE/URL in host UIs.
 | Script | Prefer this. |
 | Manual clone | `npm install && npm run build && npm test` then `node dist/index.js config set-key` |
 | `npx -y github:pedroknigge/mcp_jev` | No clone; still `config set-key` so hosts stay keyless |
-| `npx -y mcp_jev` | Not on npm yet |
+| `npx -y mcp_jev` | Published bin (`dist/index.js`). First publish is a maintainer step — [PUBLISH.md](PUBLISH.md). Until then this 404s. |
 
 ## Cursor
 
@@ -94,7 +94,7 @@ Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using 
 
 ## Verify
 
-`mcp_jev doctor` → `scripts/verify-mcp.sh` (stdio smoke, no TypeSafe) → host `ping` → `list_packs` → optional `describe_pack`. `npm test` never needs a live key.
+`mcp_jev doctor` → `mcp_jev smoke` (or `scripts/verify-mcp.sh`; no TypeSafe) → host `ping` → `list_packs` → optional `describe_pack`. `npm test` never needs a live key.
 
 ## Security
 

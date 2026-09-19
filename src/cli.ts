@@ -10,6 +10,7 @@ import { formatDoctorReport, runDoctor, wrapperPath } from "./doctor.js";
 import { formatHostSnippets, parseHostIds, writeHostConfigs, type HostId } from "./hosts.js";
 import { clearNotReadyMarker } from "./ready.js";
 import { parseScanArgs, runScan, SCAN_HELP } from "./scan.js";
+import { formatSmokeResult, runSmoke } from "./smoke.js";
 import {
   defaultRepoHome,
   defaultUserConfigDir,
@@ -32,6 +33,7 @@ Usage:
   mcp_jev scan <path>         code_audit Pass 1 over a repo (signals-only, parallel)
   mcp_jev scan <path> --dry-run
   mcp_jev scan <path> --pass2 N [--concurrency N]
+  mcp_jev smoke               Stdio initialize / tools / ping / list_packs (no TypeSafe)
   mcp_jev config set-key      Store TYPESAFE_API_KEY in ~/.mcp_jev/.env (once)
   mcp_jev config set-key KEY  Same, non-interactive
   mcp_jev config status       Show paths and api_key_set (never prints the key)
@@ -129,6 +131,17 @@ export async function runCli(argv: string[]): Promise<void> {
       if (summary.errors > 0) {
         process.exitCode = 1;
       }
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (cmd === "smoke") {
+    try {
+      const result = await runSmoke();
+      console.log(formatSmokeResult(result).trimEnd());
     } catch (err) {
       console.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
