@@ -33,7 +33,7 @@ Every `BL-###` has: **problem**, **Jev shape** (Choice / Noul / Score), **state 
 | **Icebox** | Parked; do not start without Pedro |
 | **Anti-backlog** | Will not do |
 
-P0/P1 rows get GitHub issues labeled `backlog` / `harness` / `research`. Issue numbers land in the tables when opened.
+P0/P1 rows have GitHub issues labeled `backlog` / `harness` / `research`. Numbers are in the tables below.
 
 ---
 
@@ -41,23 +41,23 @@ P0/P1 rows get GitHub issues labeled `backlog` / `harness` / `research`. Issue n
 
 | ID | Item | Shape | Issue |
 | --- | --- | --- | --- |
-| [BL-001](#bl-001--computer_use_step-to-ultrafast-parity) | Elevate `computer_use_step` to ultrafast parity | Choice + Noul + Score | TBD |
-| [BL-002](#bl-002--model_router-dogfood-for-cursor--claude-code) | `model_router` dogfood for Cursor / Claude Code | Choice + Noul + Score | TBD |
-| [BL-003](#bl-003--skill-teach-run_questions-from-each-inspiration) | Skill: teach `run_questions` with copy-paste recipes | Choice / Noul / Score (custom) | TBD |
-| [BL-004](#bl-004--pack-usage-telemetry--deprecate-unused-audit-packs) | Pack usage telemetry; deprecate packs without harness consumers | Noul + Choice | TBD |
-| [BL-005](#bl-005--wind-tunnel-style-latency--cost-harness) | Benchmark harness (latency / cost) for packs + `run_questions` | Score (+ usage) | TBD |
+| [BL-001](#bl-001--computer_use_step-to-ultrafast-parity) | Elevate `computer_use_step` to ultrafast parity | Choice + Noul + Score | [#32](https://github.com/pedroknigge/mcp_jev/issues/32) |
+| [BL-002](#bl-002--model_router-dogfood-for-cursor--claude-code) | `model_router` dogfood for Cursor / Claude Code | Choice + Noul + Score | [#35](https://github.com/pedroknigge/mcp_jev/issues/35) |
+| [BL-003](#bl-003--skill-teach-run_questions-from-each-inspiration) | Skill: teach `run_questions` with copy-paste recipes | Choice / Noul / Score (custom) | [#42](https://github.com/pedroknigge/mcp_jev/issues/42) |
+| [BL-004](#bl-004--pack-usage-telemetry--deprecate-unused-audit-packs) | Pack usage telemetry; deprecate packs without harness consumers | Noul + Choice | [#41](https://github.com/pedroknigge/mcp_jev/issues/41) |
+| [BL-005](#bl-005--wind-tunnel-style-latency--cost-harness) | Benchmark harness (latency / cost) for packs + `run_questions` | Score (+ usage) | [#43](https://github.com/pedroknigge/mcp_jev/issues/43) |
 
 ## Next (P1)
 
 | ID | Item | Shape | Issue |
 | --- | --- | --- | --- |
-| [BL-006](#bl-006--voicemac-computer_use-recipe) | Voice → `computer_use_step` recipe | Choice + Noul | TBD |
-| [BL-007](#bl-007--android-observation-schema-mobile_jev-style) | Android observation schema (mobile-jev style) | Choice + Noul + Score | TBD |
-| [BL-008](#bl-008--orbit-style-multi-host-decision-burst) | Orbit / MCP multi-host decision burst (32 / 6s pattern) | many Noul / Choice | TBD |
-| [BL-009](#bl-009--langchain-tool-gate-using-command_risk-or-run_questions) | LangChain / tool-gate middleware example | Noul + Score | TBD |
-| [BL-010](#bl-010--retrieve_then_judge-closed-passage-choice) | retrieve-then-judge (closed passage Choice) | Choice + Noul + Score | TBD |
-| [BL-011](#bl-011--provider-plugin-research-openjev--nanojev) | Provider / plugin research (openjev, NanoJev) | n/a (research) | TBD · related [#17](https://github.com/pedroknigge/mcp_jev/issues/17) |
-| [BL-012](#bl-012--trading_loop-as-run_questions-recipe-not-a-live-pack) | Trading loop as `run_questions` recipe (dry-run) | Choice + Noul + Score | TBD |
+| [BL-006](#bl-006--voicemac-computer_use-recipe) | Voice → `computer_use_step` recipe | Choice + Noul | [#33](https://github.com/pedroknigge/mcp_jev/issues/33) |
+| [BL-007](#bl-007--android-observation-schema-mobile_jev-style) | Android observation schema (mobile-jev style) | Choice + Noul + Score | [#34](https://github.com/pedroknigge/mcp_jev/issues/34) |
+| [BL-008](#bl-008--orbit-style-multi-host-decision-burst) | Orbit / MCP multi-host decision burst (32 / 6s pattern) | many Noul / Choice | [#36](https://github.com/pedroknigge/mcp_jev/issues/36) |
+| [BL-009](#bl-009--langchain-tool-gate-using-command_risk-or-run_questions) | LangChain / tool-gate middleware example | Noul + Score | [#37](https://github.com/pedroknigge/mcp_jev/issues/37) |
+| [BL-010](#bl-010--retrieve_then_judge-closed-passage-choice) | retrieve-then-judge (closed passage Choice) | Choice + Noul + Score | [#38](https://github.com/pedroknigge/mcp_jev/issues/38) |
+| [BL-011](#bl-011--provider-plugin-research-openjev--nanojev) | Provider / plugin research (openjev, NanoJev) | n/a (research) | [#40](https://github.com/pedroknigge/mcp_jev/issues/40) · related [#17](https://github.com/pedroknigge/mcp_jev/issues/17) |
+| [BL-012](#bl-012--trading_loop-as-run_questions-recipe-not-a-live-pack) | Trading loop as `run_questions` recipe (dry-run) | Choice + Noul + Score | [#39](https://github.com/pedroknigge/mcp_jev/issues/39) |
 
 ## Later
 
