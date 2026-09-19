@@ -7,7 +7,7 @@ import { loadConfig } from "../src/config.js";
 import { handleDescribePack, handleRunPack } from "../src/handlers.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
 import { NONE_OPTION } from "../src/packs/catalog-choice.js";
-import { commandRiskGate, skillRouterGate } from "../src/policy-examples.js";
+import { commandRiskGate, gateCodeAudit, skillRouterGate } from "../src/policy-examples.js";
 
 test("skill_router builds skill Choice from available_skills[]", () => {
   const pack = getPack("skill_router");
@@ -101,4 +101,19 @@ test("code-owned policy gates are unit-testable without TypeSafe", () => {
   assert.equal(skillRouterGate({ needs_skill: 0.8, skill: "mcp_jev", change_risk: 1.2 }), "load");
   assert.equal(skillRouterGate({ needs_skill: 0.8, skill: "mcp_jev", change_risk: 2.8 }), "ask");
   assert.equal(skillRouterGate({ needs_skill: 0.2, skill: "mcp_jev", change_risk: 1.0 }), "skip");
+
+  const cleanAudit = {
+    wrong_layer: 0.1,
+    blast_radius: 0.1,
+    missing_verification: 0.1,
+    secret_or_credential_risk: 0.05,
+    inefficiency: 0.1,
+    dead_or_premature_abstraction: 0.1,
+    problem_severity: 0.4,
+  };
+  assert.equal(gateCodeAudit(cleanAudit), "ok");
+  assert.equal(gateCodeAudit({ ...cleanAudit, missing_verification: 0.6, problem_severity: 1.6 }), "glance");
+  assert.equal(gateCodeAudit({ ...cleanAudit, secret_or_credential_risk: 0.8 }), "deep_review");
+  assert.equal(gateCodeAudit({ ...cleanAudit, problem_severity: 2.7 }), "deep_review");
+  assert.equal(gateCodeAudit({ ...cleanAudit, blast_radius: 0.85 }), "deep_review");
 });

@@ -4,8 +4,9 @@ description: >
   Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
   mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, PR audit, review
-  diff, intent routing, locale/country, computer-use / GUI / browser / mobile
-  harness, model router, Cursor, Claude, Codex, Grok, or Antigravity. If tools
+  diff, code audit, file audit, intent routing, locale/country, computer-use /
+  GUI / browser / mobile harness, model router, Cursor, Claude, Codex, Grok, or
+  Antigravity. If tools
   are absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
   Always list_packs → describe_pack → run_pack. No ask_jev, no free-form
   questions, no side effects, never paste TYPESAFE_API_KEY into chat.
@@ -64,10 +65,11 @@ Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
-| A judgment that exists as a pack (`pr_audit`, `review_diff`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, or later in-repo ids) | **mcp_jev** tools |
+| A judgment that exists as a pack (`pr_audit`, `review_diff`, `code_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, or later in-repo ids) | **mcp_jev** tools |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
+| Per-file / full-repo structured audit (layering / blast-radius / verification) | **`code_audit`** — recipe below |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
 | Designing new TypeSafe questions / SDK code | Official **TypeSafe skill** (`npx skills add typesafe-ai/skills --skill typesafe-ai`) |
@@ -82,6 +84,7 @@ Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host
 | Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
 | Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
 | Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | Orchestration stays in the caller. Not `pr_audit` (money/hours/migration). |
+| Per-file or full-repo scan: closed per-file state → typed ratings | `code_audit` | Do not dump the monorepo. Fan out `run_pack`. Not `review_diff` (a short diff). |
 | Pull request merge risk (money / hours / migration) | `pr_audit` | Jev does not write the review or compute `code_gate`. |
 | Catalogue SKU → one of five countries | `locale_country` | Not a geocoder for people or addresses. |
 | Closed skill names → load one or none | `skill_router` | Not a model lane. Not a GUI step. |
@@ -121,7 +124,30 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → treat as `ask_u
 
 `pr_audit` is the separate money/hours/migration merge pack. Keep both ids.
 
-## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`)
+## Recipe: `code_audit`
+
+Full-repo scan = harness lists all files → filter screenshots/binaries/generated vendor dirs → truncate excerpts (caller-owned, e.g. ≤4k chars) → parallel `run_pack` `code_audit` → aggregate top `problem_severity` / most frequent Nouls. **Do not send the monorepo as prose.**
+
+Mode A (preferred): one file per call.
+
+```json
+{
+  "path": "src/billing/invoice-total.ts",
+  "language": "ts",
+  "role_hint": "domain",
+  "excerpt": "export function invoiceTotal(lines) { return lines.reduce((s, l) => s + l.price * l.qty, 0); }",
+  "signals": { "loc": 12, "has_tests_nearby": false, "touches_money": true, "is_generated": false },
+  "repo_context": "Billing module: invoice line totals."
+}
+```
+
+Read Nouls `wrong_layer` / `blast_radius` / `missing_verification` / `secret_or_credential_risk` / `inefficiency` / `dead_or_premature_abstraction`, Scores `problem_severity` + `change_cost`, Choice `primary_concern` (`none` | `layering` | `blast_radius` | `verification` | `security` | `performance` | `abstraction` | `other`).
+
+Optional Mode B: `files[]` paths + short `batch_notes` (no bodies) → Choice `hotspot_file`. If `path` is set, Mode A wins.
+
+Example gate: `gateCodeAudit` in `src/policy-examples.ts` → `ok` | `glance` | `deep_review`. Unit-test without a TypeSafe key.
+
+## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`)
 
 Jev returns signals. **Your functions** decide. Unit-test those functions without a TypeSafe key (`src/policy-examples.ts`).
 
@@ -130,6 +156,8 @@ Jev returns signals. **Your functions** decide. Unit-test those functions withou
 `command_risk`: Nouls `is_destructive` / `touches_credentials` / `scope_matches` + Score `severity`. **Signals only.** Your allowlist and sandbox still run.
 
 `model_router`: model cascade — map `route.choice` to models/tools in code.
+
+`code_audit`: Nouls + severity → `gateCodeAudit` → `ok` | `glance` | `deep_review`. Aggregate across files in the harness.
 
 Example (copy into the harness): refuse a command if `is_destructive.noul ≥ 0.70` or `scope_matches.noul < 0.50`. Jev does not execute.
 
@@ -155,7 +183,7 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 ## Verify
 
 1. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
-2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 8. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
+2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 9. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
 3. **`list_packs`** — pick an `id` from the result.
 4. Then `describe_pack` / `run_pack`.
 
@@ -198,6 +226,7 @@ Packs live under `src/packs/` in [pedroknigge/mcp_jev](https://github.com/pedrok
 | --- | --- | --- |
 | `pr_audit` | `merge_risk`; Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. |
 | `review_diff` | Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`; Choice `hotspot_file`; Score `severity` | Gate and comments in caller code. |
+| `code_audit` | Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Fan out one file per `run_pack`. Aggregate + `gateCodeAudit` in code. Optional Mode B `hotspot_file`. |
 | `skill_router` | `needs_skill`; `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. |
 | `command_risk` | `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. |
 | `intent_router` | `intent`; Nouls `jailbreak` / `policy_violation`; Score `urgency` | Route / refuse in code. |
@@ -230,6 +259,8 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
 - Treat non-interactive install without a key as success (`NOT_READY` / doctor must fail)
 - Ask Jev for `code_gate` on `pr_audit` or `review_diff`
+- Dump a whole monorepo into `code_audit` state (fan out truncated per-file excerpts instead)
+- Put screenshots, binaries, or generated vendor trees in `code_audit` state
 - Put screenshots or image blobs in `computer_use_step` state
 - Act on speculative targets that do not match `operation`
 - Invent item ids or file paths that were not in the closed catalog

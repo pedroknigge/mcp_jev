@@ -29,6 +29,7 @@ test("verify-mcp.sh smokes initialize, tools/list, ping, and list_packs", () => 
   assert.match(result.stdout, /list_packs: /);
   assert.match(result.stdout, /computer_use_step/);
   assert.match(result.stdout, /review_diff/);
+  assert.match(result.stdout, /code_audit/);
   assert.match(result.stdout, /skill_router/);
   assert.match(result.stdout, /command_risk/);
   assert.ok(!result.stdout.includes("sk-must-not-be-used"));
