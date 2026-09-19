@@ -235,11 +235,19 @@ mcp_jev scan .                           # Pass 1, concurrency 8
 mcp_jev scan . --concurrency 16 --pass2 5
 ```
 
-Walks the tree (respects `.gitignore`; skips binaries, images, lockfiles, `node_modules`, `.git`, generated dirs), builds compact signals, and calls `code_audit` through the same `run_pack` / `systemOne` path. Prints JSONL plus a summary table (top severity, `primary_concern` histogram, hottest paths). Missing API key → clear error (except `--dry-run`).
+Walks the tree (respects `.gitignore`; skips binaries, images, lockfiles, `node_modules`, `.git`, generated dirs), builds compact signals, and calls `code_audit` through the same `run_pack` / `systemOne` path. JSONL to stdout (or `--jsonl PATH`); summary on stderr (top-K severity, `primary_concern` histogram, hottest paths, path-token-only flag count). Progress on stderr: files done/total, rate files/min, ETA. Missing API key → clear error (except `--dry-run`).
 
 **Pass 1 (default, all files):** harness lists files → filter screenshots/binaries/generated vendor dirs → compact `signals` only → parallel `run_pack` `code_audit` → aggregate top `problem_severity` / most frequent Nouls.
 
 **Pass 2 (top-N only):** resend the hottest files with a short `excerpt` (hard max 1200 chars; oversized → `invalid_state`) for confirmation. `--pass2 N` on the CLI.
+
+**6000 files / ~2 min class:** keep Pass 1 signals-only. Concurrency default **8**; **16–32** is typical for multi-k repos (`MCP_JEV_SCAN_CONCURRENCY` or `--concurrency`). `--max-files N` samples. `--resume` continues from `.mcp_jev-scan-checkpoint.json` (written every 50 files). Recipe: parallel Pass 1 → read top severity + path-token FP note → Pass 2 excerpts on top-K only.
+
+```bash
+mcp_jev scan . --concurrency 16 --summary-only --jsonl scan.jsonl
+mcp_jev scan . --concurrency 16 --pass2 20 --summary-only
+mcp_jev scan . --resume --summary-only --jsonl scan.jsonl   # after interrupt
+```
 
 Example gate (`src/policy-examples.ts` `gateCodeAudit`): `ok` | `glance` | `deep_review`. Unit-test the gate without a TypeSafe key.
 
@@ -433,7 +441,7 @@ flowchart LR
 | `MCP_JEV_CHECKOUT` | No | Git checkout (default `~/mcp_jev` or the repo you ran the script from) |
 | `MCP_JEV_WRITE_HOSTS` | No | Install-time host write (`all` or comma list) |
 | `MCP_JEV_SYNC_SKILL` | No | If `1`, install/update copy `skills/mcp_jev` into an existing `.cursor/skills` dir |
-| `MCP_JEV_SCAN_CONCURRENCY` | No | Default parallel workers for `mcp_jev scan` (8) |
+| `MCP_JEV_SCAN_CONCURRENCY` | No | Default parallel workers for `mcp_jev scan` (8; 16–32 typical for multi-k / 6000-files class) |
 
 Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.
 

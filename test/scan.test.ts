@@ -12,22 +12,31 @@ import { loadConfig } from "../src/config.js";
 import { MAX_EXCERPT_CHARS } from "../src/packs/code-audit.js";
 import { getPack } from "../src/packs/index.js";
 import {
+  CHECKPOINT_FILENAME,
+  clearCheckpoint,
   collectScanFiles,
   complexityHeuristic,
+  computeProgress,
   extractImports,
   extractSignals,
+  formatEta,
+  formatProgressLine,
   formatSummaryTable,
   inferLanguage,
   inferRoleHint,
+  isPathTokenOnlyFlag,
   listScanPaths,
   parseScanArgs,
   pathHeuristics,
   primaryConcern,
   problemSeverity,
   rankForPass2,
+  readCheckpoint,
   runScan,
   shouldIncludePath,
+  summarizeScan,
   toPackState,
+  writeCheckpoint,
   type ScanRecord,
 } from "../src/scan.js";
 import { validatePackState } from "../src/validate.js";
@@ -112,6 +121,8 @@ function fakeAnswers(severity: number, concern: string): SystemOneResult<Questio
 
 test("shouldIncludePath skips binaries, lockfiles, and generated dirs", () => {
   assert.equal(shouldIncludePath("src/app.ts"), true);
+  assert.equal(shouldIncludePath(CHECKPOINT_FILENAME), false);
+  assert.equal(shouldIncludePath(`${CHECKPOINT_FILENAME}.tmp`), false);
   assert.equal(shouldIncludePath("package-lock.json"), false);
   assert.equal(shouldIncludePath("yarn.lock"), false);
   assert.equal(shouldIncludePath("photo.png"), false);
@@ -250,6 +261,7 @@ test("dry-run walk on a tiny fixture tree skips junk and keeps signals", async (
     config,
     writeLine: (line) => lines.push(line),
     writeSummary: (text) => summaries.push(text),
+    writeProgress: () => undefined,
   });
   assert.equal(records.length, files.length);
   assert.ok(records.every((record) => record.answers === undefined));
@@ -301,10 +313,36 @@ test("parseScanArgs reads flags and MCP_JEV_SCAN_CONCURRENCY", () => {
   assert.equal(parsed.pass2, 3);
   assert.equal(parsed.concurrency, 4);
   assert.equal(parsed.dryRun, false);
+  assert.equal(parsed.top, 10);
+  assert.equal(parsed.maxFiles, 0);
+  assert.equal(parsed.resume, false);
+  assert.equal(parsed.checkpointEvery, 50);
+  assert.equal(parsed.summaryOnly, false);
   const fromEnv = parseScanArgs([".", "--dry-run"], { MCP_JEV_SCAN_CONCURRENCY: "12" });
   assert.equal(fromEnv.concurrency, 12);
   assert.equal(fromEnv.dryRun, true);
+  const large = parseScanArgs(
+    [
+      ".",
+      "--resume",
+      "--summary-only",
+      "--jsonl",
+      "out.jsonl",
+      "--max-files",
+      "80",
+      "--top=15",
+      "--checkpoint-every=10",
+    ],
+    {},
+  );
+  assert.equal(large.resume, true);
+  assert.equal(large.summaryOnly, true);
+  assert.equal(large.jsonlPath, "out.jsonl");
+  assert.equal(large.maxFiles, 80);
+  assert.equal(large.top, 15);
+  assert.equal(large.checkpointEvery, 10);
   assert.throws(() => parseScanArgs([".", "--nope"], {}), /Unknown scan flag/);
+  assert.throws(() => parseScanArgs([".", "--checkpoint-every", "-1"], {}), /non-negative/);
 });
 
 test("runScan Pass 1 + Pass 2 reuse handleRunPack with a mocked systemOne", async () => {
@@ -336,6 +374,7 @@ test("runScan Pass 1 + Pass 2 reuse handleRunPack with a mocked systemOne", asyn
     },
     writeLine: () => undefined,
     writeSummary: () => undefined,
+    writeProgress: () => undefined,
   });
 
   const pass1 = records.filter((record) => record.pass === 1);
@@ -367,4 +406,196 @@ test("rankForPass2 orders by problem_severity then path", () => {
     rankForPass2(records, 1).map((record) => record.path),
     ["a.ts"],
   );
+});
+
+test("progress helpers compute rate and ETA without a live API", () => {
+  const progress = computeProgress(30, 60, 0, 60_000);
+  assert.equal(progress.done, 30);
+  assert.equal(progress.total, 60);
+  assert.equal(progress.ratePerMin, 30);
+  assert.equal(progress.etaSeconds, 60);
+  assert.match(formatProgressLine(progress), /scan 30\/60 \(50\.0%\)/);
+  assert.match(formatProgressLine(progress), /30 files\/min/);
+  assert.match(formatProgressLine(progress), /ETA 1m 0s/);
+  assert.equal(formatEta(null), "ETA —");
+  assert.equal(formatEta(9), "ETA 9s");
+  assert.equal(formatEta(3661), "ETA 1h 1m");
+  const empty = computeProgress(0, 100, 1000, 1000);
+  assert.equal(empty.ratePerMin, 0);
+  assert.equal(empty.etaSeconds, null);
+});
+
+test("checkpoint helpers write, read, and resume without a live API", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-jev-scan-ckpt-"));
+  writeFixture(dir);
+  const config = loadConfig({ TYPESAFE_API_KEY: "test-key" }, { readUserStore: false });
+  const emptySignals = extractSignals("src/billing/invoice.ts", "", []);
+  const prior: ScanRecord = {
+    pass: 1,
+    path: "src/billing/invoice.ts",
+    language: "ts",
+    role_hint: "domain",
+    signals: emptySignals,
+    answers: fakeAnswers(2.2, "verification"),
+  };
+  const failed: ScanRecord = {
+    pass: 1,
+    path: "src/auth/login.ts",
+    language: "ts",
+    role_hint: "infra",
+    signals: extractSignals("src/auth/login.ts", "", []),
+    error: { code: "rate_limit", message: "slow down" },
+  };
+  writeCheckpoint(dir, [prior, failed]);
+  const loaded = readCheckpoint(dir);
+  assert.equal(loaded?.version, 1);
+  assert.equal(loaded?.records[0]?.path, "src/billing/invoice.ts");
+
+  const called: string[] = [];
+  const progress: string[] = [];
+  const { records, summary } = await runScan({
+    root: dir,
+    resume: true,
+    checkpointEvery: 1,
+    top: 2,
+    config,
+    systemOne: async (input) => {
+      const pathName = String((input.state as { path?: string }).path ?? "");
+      called.push(pathName);
+      return {
+        model: "jev-latest",
+        answers: fakeAnswers(0.4, "none"),
+        usage: { input_tokens: 1, output_tokens: 1 },
+      } as SystemOneResult<Questions>;
+    },
+    writeLine: () => undefined,
+    writeSummary: () => undefined,
+    writeProgress: (line) => progress.push(line),
+  });
+
+  assert.ok(!called.includes("src/billing/invoice.ts"));
+  assert.ok(called.includes("src/auth/login.ts"));
+  assert.ok(called.length >= 1);
+  assert.ok(records.some((record) => record.path === "src/billing/invoice.ts" && record.pass === 1));
+  assert.equal(summary.resumed, 1);
+  assert.ok(progress.some((line) => /scan \d+\/\d+/.test(line)));
+  assert.ok(!fs.existsSync(path.join(dir, CHECKPOINT_FILENAME)));
+});
+
+test("interrupted scan leaves a checkpoint that --resume continues", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-jev-scan-resume-"));
+  writeFixture(dir);
+  const config = loadConfig({ TYPESAFE_API_KEY: "test-key" }, { readUserStore: false });
+  await assert.rejects(
+    () =>
+      runScan({
+        root: dir,
+        concurrency: 1,
+        checkpointEvery: 1,
+        config,
+        systemOne: async () =>
+          ({
+            model: "jev-latest",
+            answers: fakeAnswers(0.3, "none"),
+            usage: { input_tokens: 1, output_tokens: 1 },
+          }) as SystemOneResult<Questions>,
+        writeLine: () => undefined,
+        writeSummary: () => undefined,
+        writeProgress: () => {
+          if (fs.existsSync(path.join(dir, CHECKPOINT_FILENAME))) {
+            throw new Error("boom-stop");
+          }
+        },
+      }),
+    /boom-stop/,
+  );
+  const mid = readCheckpoint(dir);
+  assert.ok(mid);
+  assert.ok(mid.records.length >= 1);
+
+  const called: string[] = [];
+  const { summary } = await runScan({
+    root: dir,
+    resume: true,
+    checkpointEvery: 1,
+    config,
+    systemOne: async (input) => {
+      const pathName = String((input.state as { path?: string }).path ?? "");
+      called.push(pathName);
+      return {
+        model: "jev-latest",
+        answers: fakeAnswers(0.2, "none"),
+        usage: { input_tokens: 1, output_tokens: 1 },
+      } as SystemOneResult<Questions>;
+    },
+    writeLine: () => undefined,
+    writeSummary: () => undefined,
+    writeProgress: () => undefined,
+  });
+  for (const record of mid.records) {
+    assert.ok(!called.includes(record.path));
+  }
+  assert.ok(summary.resumed >= 1);
+  assert.ok(summary.files >= mid.records.length);
+  clearCheckpoint(dir);
+});
+
+test("path-token-only flags are counted separately from other flags", () => {
+  const money = extractSignals("src/billing/invoice.ts", "export const x = 1;\n", []);
+  const plain = extractSignals("src/util.ts", "export const x = 1;\n", []);
+  assert.equal(money.touches_money, true);
+  const records: ScanRecord[] = [
+    { pass: 1, path: "src/billing/invoice.ts", language: "ts", role_hint: "domain", signals: money, answers: fakeAnswers(2.1, "verification") },
+    { pass: 1, path: "src/util.ts", language: "ts", role_hint: "other", signals: plain, answers: fakeAnswers(1.4, "abstraction") },
+    { pass: 1, path: "src/billing/ok.ts", language: "ts", role_hint: "domain", signals: money, answers: fakeAnswers(0.1, "none") },
+  ];
+  assert.equal(isPathTokenOnlyFlag(records[0]!), true);
+  assert.equal(isPathTokenOnlyFlag(records[1]!), false);
+  assert.equal(isPathTokenOnlyFlag(records[2]!), false);
+  const summary = summarizeScan(records, { concurrency: 8, dryRun: false, pass2: 0, top: 2 });
+  assert.equal(summary.flagged, 2);
+  assert.equal(summary.path_token_only_flags, 1);
+  assert.equal(summary.top, 2);
+  assert.equal(summary.top_severity.length, 2);
+  assert.match(formatSummaryTable(summary), /Path-token-only flags: 1 of 2 flagged/);
+  assert.match(formatSummaryTable(summary), /Top severity \(K=2\)/);
+});
+
+test("output modes: --max-files, --jsonl, --summary-only", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-jev-scan-out-"));
+  writeFixture(dir);
+  const jsonl = path.join(dir, "out.jsonl");
+  const lines: string[] = [];
+  const config = loadConfig({ TYPESAFE_API_KEY: "" }, { readUserStore: false });
+  const { records, summary } = await runScan({
+    root: dir,
+    dryRun: true,
+    maxFiles: 2,
+    summaryOnly: true,
+    jsonlPath: jsonl,
+    top: 3,
+    config,
+    writeLine: (line) => lines.push(line),
+    writeSummary: () => undefined,
+    writeProgress: () => undefined,
+  });
+  assert.equal(records.length, 2);
+  assert.equal(summary.max_files, 2);
+  assert.equal(lines.length, 0);
+  const fileLines = fs.readFileSync(jsonl, "utf8").trim().split("\n");
+  assert.equal(fileLines.length, 2);
+});
+
+test("cli --summary-only --max-files --jsonl does not print JSONL to stdout", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-jev-scan-cli-out-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-jev-home-"));
+  writeFixture(dir);
+  const jsonl = path.join(dir, "scan.jsonl");
+  const result = runCli(["scan", dir, "--dry-run", "--summary-only", "--max-files", "2", "--jsonl", jsonl], {
+    MCP_JEV_CONFIG: home,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "");
+  assert.match(result.stderr, /dry-run/);
+  assert.equal(fs.readFileSync(jsonl, "utf8").trim().split("\n").length, 2);
 });

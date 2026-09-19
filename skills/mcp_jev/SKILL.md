@@ -210,7 +210,25 @@ mcp_jev scan . --concurrency 16 --pass2 5
 # or: node dist/cli.js scan .
 ```
 
-The CLI walks the tree (respects `.gitignore`; skips binaries, images, lockfiles, `node_modules`, `.git`, common generated dirs), builds compact per-file signals (`loc`, `import_count`, `top_imports`, `has_tests_nearby`, `touches_money` / `touches_auth` / `touches_migration` path heuristics as **signals only**, `is_generated`, `complexity_heuristic`), and calls `code_audit` in parallel (~RTT/file). `--pass2 N` re-runs the hottest N with an excerpt ≤1200 chars. Prints JSONL plus a summary table (top severity, `primary_concern` histogram, hottest paths). Missing API key → clear error (except `--dry-run`).
+The CLI walks the tree (respects `.gitignore`; skips binaries, images, lockfiles, `node_modules`, `.git`, common generated dirs), builds compact per-file signals (`loc`, `import_count`, `top_imports`, `has_tests_nearby`, `touches_money` / `touches_auth` / `touches_migration` path heuristics as **signals only**, `is_generated`, `complexity_heuristic`), and calls `code_audit` in parallel (~RTT/file). `--pass2 N` re-runs the hottest N with an excerpt ≤1200 chars. JSONL to stdout (or `--jsonl PATH`); summary table on stderr (top-K severity, `primary_concern` histogram, hottest paths, path-token-only flag count). Progress on stderr: `done/total`, files/min, ETA. Missing API key → clear error (except `--dry-run`).
+
+### 6000 files / ~2 min class
+
+Dogfood-scale tree. Keep Pass 1 millisecond-tier (signals only, no excerpts). Default concurrency **8**; **16–32** is typical for multi-k repos. `--max-files N` samples. Ctrl+C is safe: `--resume` continues from `.mcp_jev-scan-checkpoint.json` (written every 50 files).
+
+```bash
+# Pass 1 — parallel, summary on stderr, JSONL on disk
+mcp_jev scan . --concurrency 16 --summary-only --jsonl scan.jsonl
+# stderr: scan 1234/6000 (20.6%) · 3100 files/min · ETA 1m 32s
+# then top severity + "Path-token-only flags: N of M flagged"
+
+# Pass 2 — confirm hottest files with excerpt ≤1200
+mcp_jev scan . --concurrency 16 --pass2 20 --summary-only --jsonl scan-pass2.jsonl
+# interrupted Pass 1:
+mcp_jev scan . --concurrency 16 --resume --summary-only --jsonl scan.jsonl
+```
+
+Recipe: **parallel Pass 1 → read top severity + path-token FP note → Pass 2 excerpts on top-K only.** Path tokens (`billing`, `auth`, `migration`, …) can move Nouls without reading bodies; treat those flags as suspects until Pass 2.
 
 ## Recipe: `verify_gap`
 
@@ -266,7 +284,7 @@ No-args starts the stdio MCP server. Commands (never print the TypeSafe key):
 | `mcp_jev config set-key KEY` | Same, non-interactive |
 | `mcp_jev config status` | Paths + `api_key_set` / `api_key_source` (never the secret) |
 | `mcp_jev config path` | Print the user config directory |
-| `mcp_jev scan <path>` | Full-repo `code_audit` Pass 1 (signals-only, parallel). `--dry-run`, `--concurrency N`, `--pass2 N`. Also `node dist/cli.js scan`. |
+| `mcp_jev scan <path>` | Full-repo `code_audit` Pass 1 (signals-only, parallel). `--dry-run`, `--concurrency N` (8 default; 16–32 for multi-k / 6000-files class), `--pass2 N`, `--top K`, `--max-files N`, `--jsonl PATH`, `--summary-only`, `--resume`, `--checkpoint-every N`. Progress + ETA on stderr. Also `node dist/cli.js scan`. |
 | `mcp_jev smoke` | Stdio initialize / tools / ping / list_packs. No TypeSafe call. Same check as `scripts/verify-mcp.sh`. |
 | `mcp_jev help` | Usage |
 
@@ -377,7 +395,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 | `MCP_JEV_CHECKOUT` | Git checkout (default `~/mcp_jev`) |
 | `MCP_JEV_WRITE_HOSTS` | Optional install-time host write |
 | `MCP_JEV_SYNC_SKILL` | If `1`, `install.sh` / `update.sh` copy `skills/mcp_jev` into an **existing** `$REPO_HOME/.cursor/skills` or `~/.cursor/skills` |
-| `MCP_JEV_SCAN_CONCURRENCY` | Default parallel workers for `mcp_jev scan` (default 8) |
+| `MCP_JEV_SCAN_CONCURRENCY` | Default parallel workers for `mcp_jev scan` (default 8; 16–32 typical for 6000-files class) |
 | `TYPESAFE_BASE_URL` / `JEV_MODEL` / `TYPESAFE_DEFAULT_MODEL` | Optional |
 
 The user store wins; process env is fallback only. Repo `.env` is not auto-loaded.
