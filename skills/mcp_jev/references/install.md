@@ -2,7 +2,9 @@
 
 **Source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev)
 
-Happy path: `scripts/install.sh` / `install.ps1` → key once in `~/.mcp_jev/.env` → paste **keyless** JSON → restart → `ping`.
+Happy path: `scripts/install.sh` / `install.ps1` → key once in `~/.mcp_jev/.env` → paste **keyless** snippets (or `mcp_jev hosts write`) → `mcp_jev doctor` → restart → `ping`.
+
+Non-interactive without a key writes `~/.mcp_jev/NOT_READY` and exits non-zero.
 
 ```json
 {
@@ -36,6 +38,8 @@ Same JSON. Fully quit after saving.
 claude mcp add --scope user --transport stdio mcp_jev -- "$HOME/.mcp_jev/bin/mcp_jev"
 ```
 
+Or merge `~/.claude.json` with the generic JSON.
+
 ## Codex
 
 `~/.codex/config.toml`:
@@ -45,7 +49,7 @@ claude mcp add --scope user --transport stdio mcp_jev -- "$HOME/.mcp_jev/bin/mcp
 command = "/Users/YOU/.mcp_jev/bin/mcp_jev"
 ```
 
-## Grok / xAI
+## Grok
 
 `~/.grok/config.toml` — same `[mcp_servers.mcp_jev]` table. `grok mcp add mcp_jev -- ~/.mcp_jev/bin/mcp_jev`
 
@@ -53,6 +57,8 @@ command = "/Users/YOU/.mcp_jev/bin/mcp_jev"
 
 `~/.gemini/config/mcp_config.json` or `.agents/mcp_config.json` — generic JSON.
 
-## Windsurf / Cline / Continue / Zed
+Print/merge: `mcp_jev hosts print` · `mcp_jev hosts write all` · `MCP_JEV_WRITE_HOSTS=all`.
 
-Same wrapper `command`. Zed uses **`context_servers`**. Details: repo `docs/INSTALL_AGENTS.md`.
+## Other hosts
+
+Same wrapper `command`. Some editors use **`context_servers`**. Details: repo `docs/INSTALL_AGENTS.md`.

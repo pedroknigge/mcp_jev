@@ -69,11 +69,15 @@ export async function handleRunPack(
     model: deps.config.model,
   });
 
+  const answers = result.answers as Record<string, unknown>;
+  const extra = pack.decorateRunResult?.({ state: input.state, answers }) ?? {};
+
   return {
     pack_id: pack.id,
     pack_version: pack.version,
     model: result.model,
-    answers: result.answers,
+    answers,
     usage: result.usage,
+    ...extra,
   };
 }

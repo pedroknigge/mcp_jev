@@ -4,7 +4,7 @@ mcp_jev is a small, local MCP server. Keep the surface closed: **no free-form `a
 
 Live TypeSafe docs are the source of truth for the API: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Do not invent request or response fields.
 
-This repo is the source of truth for **how agents install and call** the four tools: [README.md](README.md), [scripts/install.sh](scripts/install.sh), [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md), and [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md). If you add a pack or a tool, update those. Keep `./scripts/install.sh` / `update.sh` as the happy path; do not require the TypeSafe key in every host `mcp.json`.
+This repo is the source of truth for **how agents install and call** the four tools: [README.md](README.md), [scripts/install.sh](scripts/install.sh), [scripts/verify-mcp.sh](scripts/verify-mcp.sh), [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md), and [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md). If you add a pack or a tool, update those. Keep `./scripts/install.sh` / `update.sh` as the happy path; do not require the TypeSafe key in every host `mcp.json`. Non-interactive install without a key must write `NOT_READY` and fail; `mcp_jev doctor` must report it.
 
 ## Setup
 
@@ -43,7 +43,7 @@ Use the JS helpers only through `questionsFor(pack, state)` — that is what `ru
 
 If a Choice catalog is not known until `run_pack` (item ids, file paths), set `questionsForState(state)` and build `choice()` criteria as a `Record` of those ids. `describe_pack` still returns the static `questions` template plus `dynamic_choice_from_state: true`. The TypeSafe JS SDK accepts dynamic option keys; do not invent ids the caller did not pass.
 
-Add a registry or handler test if the pack has a special contract (for example: a gate that Jev must **not** compute, or target options built from `items[]`).
+Add a registry or handler test if the pack has a special contract (for example: a gate that Jev must **not** compute, target options built from `items[]` / `files[]`, or additive `guidance` on `run_pack`).
 
 ## What not to add
 

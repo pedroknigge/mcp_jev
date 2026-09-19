@@ -51,6 +51,13 @@ export type PackDefinition = {
    * the static `questions` template.
    */
   questionsForState?: (state: Record<string, unknown>) => PackQuestion[];
+  /** Extra contract checks after JSON Schema (e.g. no screenshots). */
+  enforceState?: (state: Record<string, unknown>) => void;
+  /** Additive fields on run_pack (e.g. computer_use_step `guidance`). */
+  decorateRunResult?: (input: {
+    state: unknown;
+    answers: Record<string, unknown>;
+  }) => Record<string, unknown>;
   suggested_workflow: string[];
   notes: string[];
 };

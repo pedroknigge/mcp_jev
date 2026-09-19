@@ -83,3 +83,53 @@ export function catalogChoiceCriteria(
   }
   return criteria;
 }
+
+export function readStringCatalog(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+/**
+ * Build Choice criteria from a closed string catalog (file paths, ids).
+ * Keys are the caller values; this MCP does not invent entries.
+ */
+export function stringCatalogChoiceCriteria(
+  values: string[],
+  noneDescription: string,
+  fieldPath: string,
+): Record<string, string> {
+  if (values.length === 0) {
+    return {
+      [NONE_OPTION]: noneDescription,
+      [UNAVAILABLE_OPTION]: `Empty ${fieldPath} catalog; pass a closed list before targeting.`,
+    };
+  }
+  if (values.length + 1 > MAX_CHOICE_OPTIONS) {
+    throw new ToolError(
+      "invalid_state",
+      `${fieldPath} has ${values.length} entries; TypeSafe Choice allows at most ${MAX_CHOICE_OPTIONS - 1} plus "${NONE_OPTION}". Filter the catalog in the caller.`,
+    );
+  }
+
+  const seen = new Set<string>();
+  const criteria: Record<string, string> = {
+    [NONE_OPTION]: noneDescription,
+  };
+  for (const raw of values) {
+    const value = raw.trim();
+    if (value === NONE_OPTION || value === UNAVAILABLE_OPTION) {
+      throw new ToolError(
+        "invalid_state",
+        `${fieldPath} entry "${value}" is reserved. Use another path; keep "${NONE_OPTION}" / "${UNAVAILABLE_OPTION}" for pack-owned options.`,
+      );
+    }
+    if (seen.has(value)) {
+      throw new ToolError("invalid_state", `${fieldPath} has duplicate entry "${value}". Catalog values must be unique.`);
+    }
+    seen.add(value);
+    criteria[value] = `Closed catalog entry from ${fieldPath}.`;
+  }
+  return criteria;
+}

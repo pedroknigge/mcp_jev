@@ -1,4 +1,4 @@
-# One-shot install (Windows): clone or pull, build, store the TypeSafe key once, print host JSON.
+# One-shot install (Windows): clone or pull, build, store the TypeSafe key once, print host snippets.
 $ErrorActionPreference = "Stop"
 
 $repoUrl = if ($env:MCP_JEV_REPO) { $env:MCP_JEV_REPO } else { "https://github.com/pedroknigge/mcp_jev.git" }
@@ -36,23 +36,31 @@ Write-Host "Repo:    $repoHome"
 Write-Host "Config:  $configDir"
 Write-Host "Source:  $repoUrl"
 
-if (Test-Path (Join-Path $repoHome ".git")) {
-  Write-Host "Updating existing clone…"
-  git -C $repoHome pull --ff-only
-} elseif ((Test-Path $repoHome) -and (Test-Path (Join-Path $repoHome "package.json"))) {
-  Write-Host "Using existing directory (not a git clone)."
+if (-not $env:MCP_JEV_INSTALL_SKIP_GIT) {
+  if (Test-Path (Join-Path $repoHome ".git")) {
+    Write-Host "Updating existing clone…"
+    git -C $repoHome pull --ff-only
+  } elseif ((Test-Path $repoHome) -and (Test-Path (Join-Path $repoHome "package.json"))) {
+    Write-Host "Using existing directory (not a git clone)."
+  } else {
+    Write-Host "Cloning…"
+    git clone $repoUrl $repoHome
+  }
 } else {
-  Write-Host "Cloning…"
-  git clone $repoUrl $repoHome
+  Write-Host "Skipping git (MCP_JEV_INSTALL_SKIP_GIT=1)."
 }
 
-Write-Host "npm install && npm run build"
-Push-Location $repoHome
-try {
-  npm install
-  npm run build
-} finally {
-  Pop-Location
+if (-not $env:MCP_JEV_INSTALL_SKIP_BUILD) {
+  Write-Host "npm install && npm run build"
+  Push-Location $repoHome
+  try {
+    npm install
+    npm run build
+  } finally {
+    Pop-Location
+  }
+} else {
+  Write-Host "Skipping npm install/build (MCP_JEV_INSTALL_SKIP_BUILD=1)."
 }
 
 New-Item -ItemType Directory -Force -Path (Join-Path $configDir "bin") | Out-Null
@@ -71,50 +79,79 @@ $wrapper = Join-Path $configDir "bin\mcp_jev.cmd"
 ) | Set-Content -Path $wrapper -Encoding ASCII
 
 $envFile = Join-Path $configDir ".env"
+$ready = $true
 if ($env:TYPESAFE_API_KEY) {
   $env:MCP_JEV_HOME = $configDir
   node (Join-Path $repoHome "dist\index.js") config set-key $env:TYPESAFE_API_KEY
+  Remove-Item -ErrorAction SilentlyContinue (Join-Path $configDir "NOT_READY")
 } elseif ((Test-Path $envFile) -and (Select-String -Path $envFile -Pattern "^TYPESAFE_API_KEY=.+" -Quiet)) {
   Write-Host "Keeping existing key in $envFile"
+  Remove-Item -ErrorAction SilentlyContinue (Join-Path $configDir "NOT_READY")
 } else {
   Write-Host ""
   Write-Host "Set your TypeSafe key ONCE (https://console.typesafe.ai). Any agent that attaches this MCP reuses it."
   Write-Host "Host mcp.json stays keyless."
-  if ($Host.UI.RawUI) {
+  $interactive = $false
+  try { $interactive = [Environment]::UserInteractive -and $Host.Name -ne "ServerRemoteHost" } catch { $interactive = $false }
+  if ($interactive) {
     $env:MCP_JEV_HOME = $configDir
     node (Join-Path $repoHome "dist\index.js") config set-key
+    Remove-Item -ErrorAction SilentlyContinue (Join-Path $configDir "NOT_READY")
   } else {
-    Write-Host "Non-interactive: re-run with `$env:TYPESAFE_API_KEY or:"
-    Write-Host "  `$env:MCP_JEV_HOME='$configDir'; node `"$repoHome\dist\index.js`" config set-key"
+    $ready = $false
+    $marker = Join-Path $configDir "NOT_READY"
+    @"
+NOT_READY
+
+mcp_jev finished the checkout and wrapper, but no TypeSafe key is stored.
+Host configs must stay keyless. Do not paste TYPESAFE_API_KEY into chat or mcp.json.
+
+Next step:
+  `$env:MCP_JEV_HOME='$configDir'; node `"$repoHome\dist\index.js`" config set-key
+
+Then:
+  `$env:MCP_JEV_HOME='$configDir'; node `"$repoHome\dist\index.js`" doctor
+"@ | Set-Content -Path $marker -Encoding UTF8
+    Write-Host ""
+    Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    Write-Host "NOT_READY: non-interactive install without a TypeSafe key."
+    Write-Host "Wrote $marker"
+    Write-Host "Next: `$env:MCP_JEV_HOME='$configDir'; node `"$repoHome\dist\index.js`" config set-key"
+    Write-Host "Then: mcp_jev doctor"
+    Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   }
 }
 
-$wrapperJson = $wrapper.Replace("\", "/")
-$json = @"
-{
-  "mcpServers": {
-    "mcp_jev": {
-      "command": "$wrapperJson"
-    }
-  }
+$env:MCP_JEV_HOME = $configDir
+$cli = Join-Path $repoHome "dist\index.js"
+if (Test-Path $cli) {
+  Write-Host ""
+  node $cli hosts print
 }
-"@
+
+if ($env:MCP_JEV_WRITE_HOSTS) {
+  Write-Host ""
+  Write-Host "Writing keyless host snippets (MCP_JEV_WRITE_HOSTS=$($env:MCP_JEV_WRITE_HOSTS))…"
+  node $cli hosts write $env:MCP_JEV_WRITE_HOSTS
+} else {
+  Write-Host ""
+  Write-Host "Non-interactive host write skipped unless MCP_JEV_WRITE_HOSTS is set."
+}
 
 Write-Host ""
-Write-Host "=== Cursor  (%USERPROFILE%\.cursor\mcp.json) ==="
-Write-Host $json
-Write-Host ""
-Write-Host "=== Claude Desktop  (%APPDATA%\Claude\claude_desktop_config.json) ==="
-Write-Host $json
-Write-Host ""
-Write-Host "Then: restart the MCP host → ping → list_packs"
+Write-Host "Then: mcp_jev doctor → restart the MCP host → ping → list_packs"
 Write-Host "Update later:  $repoHome\scripts\update.ps1"
 Write-Host "Docs: https://github.com/pedroknigge/mcp_jev"
 Write-Host "Do not put the key in chat or in mcp.json."
 
 try {
-  Set-Clipboard -Value $json
+  $wrapperJson = $wrapper.Replace("\", "/")
+  Set-Clipboard -Value "{ `"mcpServers`": { `"mcp_jev`": { `"command`": `"$wrapperJson`" } } }"
   Write-Host "Copied Cursor JSON to the clipboard."
 } catch {
   # clipboard may be unavailable
+}
+
+if (-not $ready) {
+  exit 2
 }

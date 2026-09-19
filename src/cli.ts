@@ -1,8 +1,13 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import readline from "node:readline/promises";
 import { stdin as stdinStream, stdout as stdoutStream } from "node:process";
 
 import { loadConfig } from "./config.js";
+import { formatDoctorReport, runDoctor, wrapperPath } from "./doctor.js";
+import { formatHostSnippets, parseHostIds, writeHostConfigs, type HostId } from "./hosts.js";
+import { clearNotReadyMarker } from "./ready.js";
 import {
   defaultRepoHome,
   defaultUserConfigDir,
@@ -18,6 +23,10 @@ function printHelp(): void {
 
 Usage:
   mcp_jev                     Start the stdio MCP server
+  mcp_jev doctor              Check checkout, dist, wrapper, key (boolean), hosts
+  mcp_jev doctor --json       Same, machine-readable (never includes the key)
+  mcp_jev hosts print         Keyless snippets for Cursor/Claude/Codex/Grok/Antigravity
+  mcp_jev hosts write [ids]   Merge snippets into host configs (all or comma list)
   mcp_jev config set-key      Store TYPESAFE_API_KEY in ~/.mcp_jev/.env (once)
   mcp_jev config set-key KEY  Same, non-interactive
   mcp_jev config status       Show paths and api_key_set (never prints the key)
@@ -47,19 +56,69 @@ async function readKeyInteractive(): Promise<string> {
   }
 }
 
+function resolvedWrapper(configDir: string): string {
+  const existing = wrapperPath(configDir);
+  if (fs.existsSync(existing)) {
+    return existing;
+  }
+  return path.join(configDir, "bin", process.platform === "win32" ? "mcp_jev.cmd" : "mcp_jev");
+}
+
 export async function runCli(argv: string[]): Promise<void> {
   const [cmd, sub, ...rest] = argv;
   if (cmd === "help" || cmd === "--help" || cmd === "-h" || !cmd) {
     printHelp();
     return;
   }
+
+  const configDir = defaultUserConfigDir();
+
+  if (cmd === "doctor") {
+    const asJson = sub === "--json" || rest.includes("--json") || sub === "-j";
+    const report = runDoctor({ userConfigDir: configDir, detectHosts: true });
+    if (asJson) {
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      console.log(formatDoctorReport(report).trimEnd());
+    }
+    if (!report.ready) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (cmd === "hosts") {
+    const command = resolvedWrapper(configDir);
+    if (sub === "print" || !sub) {
+      console.log(formatHostSnippets(command, os.homedir()).trimEnd());
+      return;
+    }
+    if (sub === "write") {
+      let ids: HostId[];
+      try {
+        ids = parseHostIds(rest[0]);
+      } catch (err) {
+        console.error(err instanceof Error ? err.message : String(err));
+        process.exitCode = 1;
+        return;
+      }
+      const result = writeHostConfigs(command, ids, os.homedir());
+      console.log(JSON.stringify({ command, ...result }, null, 2));
+      if (result.errors.length > 0) {
+        process.exitCode = 1;
+      }
+      return;
+    }
+    console.error(`Unknown hosts command "${sub}". Try: mcp_jev hosts print | mcp_jev hosts write all`);
+    process.exitCode = 1;
+    return;
+  }
+
   if (cmd !== "config") {
     console.error(`Unknown command "${cmd}". Try: mcp_jev help`);
     process.exitCode = 1;
     return;
   }
-
-  const configDir = defaultUserConfigDir();
 
   if (sub === "path") {
     console.log(configDir);
@@ -95,6 +154,7 @@ export async function runCli(argv: string[]): Promise<void> {
     if (!readHomeRecord(configDir)) {
       writeHomeRecord(defaultRepoHome(), configDir);
     }
+    clearNotReadyMarker(configDir);
     const config = loadConfig(process.env, { userConfigDir: configDir });
     console.log(`Wrote ${file} (chmod 600). api_key_set=${config.apiKeySet}. Key is not printed.`);
     return;

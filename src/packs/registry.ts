@@ -1,9 +1,12 @@
 import { ToolError } from "../errors.js";
+import { commandRiskPack } from "./command-risk.js";
 import { computerUseStepPack } from "./computer-use-step.js";
 import { intentRouterPack } from "./intent-router.js";
 import { localeCountryPack } from "./locale-country.js";
 import { modelRouterPack } from "./model-router.js";
 import { prAuditPack } from "./pr-audit.js";
+import { reviewDiffPack } from "./review-diff.js";
+import { skillRouterPack } from "./skill-router.js";
 import type { PackDefinition, PackSummary } from "./types.js";
 
 const packs: PackDefinition[] = [
@@ -12,6 +15,9 @@ const packs: PackDefinition[] = [
   localeCountryPack,
   computerUseStepPack,
   modelRouterPack,
+  reviewDiffPack,
+  skillRouterPack,
+  commandRiskPack,
 ];
 
 const byId = new Map(packs.map((pack) => [pack.id, pack]));

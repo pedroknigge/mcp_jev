@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot install: clone or pull, build, store the TypeSafe key once, print host JSON.
+# One-shot install: clone or pull, build, store the TypeSafe key once, print host snippets.
 set -euo pipefail
 
 REPO_URL="${MCP_JEV_REPO:-https://github.com/pedroknigge/mcp_jev.git}"
@@ -42,25 +42,34 @@ say "Repo:    $REPO_HOME"
 say "Config:  $CONFIG_DIR"
 say "Source:  $REPO_URL"
 
-if [[ -d "$REPO_HOME/.git" ]]; then
-  say "Updating existing clone…"
-  git -C "$REPO_HOME" pull --ff-only
-elif [[ -d "$REPO_HOME" && -f "$REPO_HOME/package.json" ]]; then
-  say "Using existing directory (not a git clone)."
-else
-  if [[ -e "$REPO_HOME" && ! -d "$REPO_HOME" ]]; then
-    die "$REPO_HOME exists and is not a directory"
+if [[ -z "${MCP_JEV_INSTALL_SKIP_GIT:-}" ]]; then
+  if [[ -d "$REPO_HOME/.git" ]]; then
+    say "Updating existing clone…"
+    git -C "$REPO_HOME" pull --ff-only
+  elif [[ -d "$REPO_HOME" && -f "$REPO_HOME/package.json" ]]; then
+    say "Using existing directory (not a git clone)."
+  else
+    if [[ -e "$REPO_HOME" && ! -d "$REPO_HOME" ]]; then
+      die "$REPO_HOME exists and is not a directory"
+    fi
+    say "Cloning…"
+    git clone "$REPO_URL" "$REPO_HOME"
   fi
-  say "Cloning…"
-  git clone "$REPO_URL" "$REPO_HOME"
+else
+  say "Skipping git (MCP_JEV_INSTALL_SKIP_GIT=1)."
+  [[ -f "$REPO_HOME/package.json" ]] || die "MCP_JEV_INSTALL_SKIP_GIT set but $REPO_HOME/package.json is missing"
 fi
 
-say "npm install && npm run build"
-(
-  cd "$REPO_HOME"
-  npm install
-  npm run build
-)
+if [[ -z "${MCP_JEV_INSTALL_SKIP_BUILD:-}" ]]; then
+  say "npm install && npm run build"
+  (
+    cd "$REPO_HOME"
+    npm install
+    npm run build
+  )
+else
+  say "Skipping npm install/build (MCP_JEV_INSTALL_SKIP_BUILD=1)."
+fi
 
 mkdir -p "$CONFIG_DIR/bin"
 printf '%s\n' "$REPO_HOME" > "$CONFIG_DIR/home"
@@ -92,56 +101,89 @@ WRAP
 chmod 755 "$WRAPPER"
 
 ENV_FILE="$CONFIG_DIR/.env"
+READY=1
 if [[ -n "${TYPESAFE_API_KEY:-}" ]]; then
   MCP_JEV_HOME="$CONFIG_DIR" node "$REPO_HOME/dist/index.js" config set-key "$TYPESAFE_API_KEY"
+  rm -f "$CONFIG_DIR/NOT_READY"
 elif [[ -f "$ENV_FILE" ]] && grep -q '^TYPESAFE_API_KEY=.\+' "$ENV_FILE"; then
   say "Keeping existing key in $ENV_FILE"
+  rm -f "$CONFIG_DIR/NOT_READY"
 else
   say ""
   say "Set your TypeSafe key ONCE (https://console.typesafe.ai). Any agent that attaches this MCP reuses it."
   say "Host mcp.json stays keyless."
   if [[ -t 0 ]]; then
     MCP_JEV_HOME="$CONFIG_DIR" node "$REPO_HOME/dist/index.js" config set-key
+    rm -f "$CONFIG_DIR/NOT_READY"
   else
-    say "Non-interactive: re-run with TYPESAFE_API_KEY=… or:"
-    say "  MCP_JEV_HOME=\"$CONFIG_DIR\" node \"$REPO_HOME/dist/index.js\" config set-key"
+    READY=0
+    cat > "$CONFIG_DIR/NOT_READY" <<EOF
+NOT_READY
+
+mcp_jev finished the checkout and wrapper, but no TypeSafe key is stored.
+Host configs must stay keyless. Do not paste TYPESAFE_API_KEY into chat or mcp.json.
+
+Next step:
+  MCP_JEV_HOME="$CONFIG_DIR" node "$REPO_HOME/dist/index.js" config set-key
+
+Then:
+  MCP_JEV_HOME="$CONFIG_DIR" node "$REPO_HOME/dist/index.js" doctor
+EOF
+    say ""
+    say "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    say "NOT_READY: non-interactive install without a TypeSafe key."
+    say "Wrote $CONFIG_DIR/NOT_READY"
+    say "Next: MCP_JEV_HOME=\"$CONFIG_DIR\" node \"$REPO_HOME/dist/index.js\" config set-key"
+    say "Then: mcp_jev doctor"
+    say "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   fi
 fi
 
-CURSOR_JSON=$(cat <<EOF
-{
-  "mcpServers": {
-    "mcp_jev": {
-      "command": "$WRAPPER"
-    }
-  }
-}
-EOF
-)
-
-CLAUDE_JSON="$CURSOR_JSON"
+CLI=(env "MCP_JEV_HOME=$CONFIG_DIR" node "$REPO_HOME/dist/index.js")
 
 say ""
-say "=== Cursor  (~/.cursor/mcp.json or .cursor/mcp.json) ==="
-say "$CURSOR_JSON"
+if [[ -f "$REPO_HOME/dist/index.js" ]]; then
+  "${CLI[@]}" hosts print || true
+else
+  say "=== Cursor  (~/.cursor/mcp.json) ==="
+  say "{ \"mcpServers\": { \"mcp_jev\": { \"command\": \"$WRAPPER\" } } }"
+fi
+
+if [[ -n "${MCP_JEV_WRITE_HOSTS:-}" ]]; then
+  say ""
+  say "Writing keyless host snippets (MCP_JEV_WRITE_HOSTS=${MCP_JEV_WRITE_HOSTS})…"
+  "${CLI[@]}" hosts write "$MCP_JEV_WRITE_HOSTS" || true
+elif [[ -t 0 ]]; then
+  say ""
+  printf 'Write keyless snippets into detected host configs? [y/N] '
+  read -r ANSWER || ANSWER=""
+  if [[ "$ANSWER" =~ ^[Yy] ]]; then
+    "${CLI[@]}" hosts write all || true
+  else
+    say "Skipped host writes. Merge the printed snippets yourself."
+  fi
+else
+  say ""
+  say "Non-interactive: host files were not modified."
+  say "Merge the snippets above, or re-run with MCP_JEV_WRITE_HOSTS=all (or cursor,claude_desktop,claude_code,codex,grok,antigravity)."
+fi
+
 say ""
-say "=== Claude Desktop  (claude_desktop_config.json) ==="
-say "$CLAUDE_JSON"
-say ""
-say "Same JSON works for most hosts. Codex/Grok use TOML:"
-say "[mcp_servers.mcp_jev]"
-say "command = \"$WRAPPER\""
-say ""
-say "Then: restart the MCP host → ping → list_packs"
+say "Then: mcp_jev doctor → restart the MCP host → ping → list_packs"
+say "Smoke (no TypeSafe call): $REPO_HOME/scripts/verify-mcp.sh"
 say "Update later:  $REPO_HOME/scripts/update.sh"
 say "Skill: npx skills add pedroknigge/mcp_jev --skill mcp_jev"
 say "Docs: https://github.com/pedroknigge/mcp_jev"
 say "Do not put the key in chat or in mcp.json."
 
 if command -v pbcopy >/dev/null 2>&1; then
-  printf '%s\n' "$CURSOR_JSON" | pbcopy && say "Copied Cursor JSON to the clipboard (pbcopy)."
+  printf '%s\n' "{ \"mcpServers\": { \"mcp_jev\": { \"command\": \"$WRAPPER\" } } }" | pbcopy && say "Copied Cursor JSON to the clipboard (pbcopy)."
 elif command -v wl-copy >/dev/null 2>&1; then
-  printf '%s\n' "$CURSOR_JSON" | wl-copy && say "Copied Cursor JSON to the clipboard (wl-copy)."
+  printf '%s\n' "{ \"mcpServers\": { \"mcp_jev\": { \"command\": \"$WRAPPER\" } } }" | wl-copy && say "Copied Cursor JSON to the clipboard (wl-copy)."
 elif command -v xclip >/dev/null 2>&1; then
-  printf '%s\n' "$CURSOR_JSON" | xclip -selection clipboard && say "Copied Cursor JSON to the clipboard (xclip)."
+  printf '%s\n' "{ \"mcpServers\": { \"mcp_jev\": { \"command\": \"$WRAPPER\" } } }" | xclip -selection clipboard && say "Copied Cursor JSON to the clipboard (xclip)."
+fi
+
+if [[ "$READY" -eq 0 ]]; then
+  exit 2
 fi

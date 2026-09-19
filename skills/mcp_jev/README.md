@@ -20,11 +20,13 @@ This is **not** the official TypeSafe authoring skill (`npx skills add typesafe-
 The skill does not start Jev. From the repo:
 
 ```bash
-./scripts/install.sh    # key once → keyless host JSON
+./scripts/install.sh    # key once → keyless host snippets
 ./scripts/update.sh     # pull + build; keeps ~/.mcp_jev/.env
+mcp_jev doctor          # checkout, dist, wrapper, key boolean
+./scripts/verify-mcp.sh # stdio smoke, no TypeSafe call
 ```
 
-Then paste the printed MCP snippet and restart the host.
+Then paste the printed MCP snippets (or `mcp_jev hosts write`) and restart the host.
 
 **Say this to your agent:**  
 Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using the install script and skill.

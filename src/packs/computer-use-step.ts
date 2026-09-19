@@ -5,6 +5,7 @@ import {
   readCatalogItems,
   UNAVAILABLE_OPTION,
 } from "./catalog-choice.js";
+import { buildComputerUseGuidance, rejectScreenshotState } from "./computer-use-guidance.js";
 
 const OPERATION_CRITERIA = {
   click_item: "Click one visible catalog item (`click_target`).",
@@ -147,10 +148,10 @@ function sharedJudgments(): PackQuestion[] {
 
 export const computerUseStepPack: PackDefinition = {
   id: "computer_use_step",
-  version: "1.0.0",
+  version: "1.1.0",
   title: "Computer-use step",
   summary:
-    "One observation → one decision for GUI / browser / mobile harnesses: Choice operation + speculative click/type/offscreen targets from the closed item catalog, Nouls goal_achieved / observation_stale, Score step_confidence.",
+    "One observation → one decision for GUI / browser / mobile harnesses: Choice operation + speculative click/type/offscreen targets from the closed item catalog, Nouls goal_achieved / observation_stale, Score step_confidence. run_pack also returns additive `guidance` (ignore mismatched targets; writer LLM owns typed strings).",
   when_to_use:
     "When a harness already has structured screen state (OCR, accessibility tree, or DOM) and needs the next operation and target. Not for screenshots, not for writing the typed string, not for routing a chat utterance (`intent_router`) or picking a model lane (`model_router`).",
   state_schema: {
@@ -236,6 +237,11 @@ export const computerUseStepPack: PackDefinition = {
     history: [{ action: "wait", result: "form_visible" }],
     flags: { modal_open: false, loading: false, login_required: true, keyboard_visible: true },
   },
+  questionsForState: targetQuestions,
+  enforceState: rejectScreenshotState,
+  decorateRunResult: ({ state, answers }) => ({
+    guidance: buildComputerUseGuidance(state, answers),
+  }),
   questions: [
     operationQuestion(),
     {
@@ -261,21 +267,26 @@ export const computerUseStepPack: PackDefinition = {
     },
     ...sharedJudgments(),
   ],
-  questionsForState: targetQuestions,
   suggested_workflow: [
     "Observe in code (OCR, accessibility tree, or DOM). Build `items[]` / `offscreen_items[]` with stable ids. Never put screenshots or image bytes in state.",
     "Pass `goal`, `app_or_url`, a short `observation_summary`, optional `focused_field`, recent `history`, and `flags`.",
-    "run_pack computer_use_step. One systemOne call fans out operation + three target Choices + two Nouls + step_confidence.",
+    "run_pack computer_use_step. One systemOne call fans out operation + three target Choices + two Nouls + step_confidence. The MCP adds `guidance` (additive; answers stay the same).",
     "In code: if goal_achieved.noul is high and/or operation is done, stop. If observation_stale.noul is high or step_confidence is low, re-observe — do not act.",
-    "Execute only the chosen operation. For click_item use click_target; for type_* use type_target; for press_offscreen use offscreen_target. Ignore the other target answers.",
-    "If operation is type_text or type_email, call a writer LLM (or a stored value) for the string. Jev does not generate text.",
+    "Execute only the chosen operation. Prefer `guidance.effective_targets` and `guidance.ignore_targets`. For click_item use click_target; for type_* use type_target; for press_offscreen use offscreen_target. Ignore speculative targets that do not match operation.",
+    "If operation is type_text or type_email, call a writer LLM (or a stored value) for the string. Jev does not generate text (`guidance.writer_owns_typed_string`).",
     "Stop rules, retries, and irreversible confirms stay in the harness. Append the action to history and loop.",
   ],
   notes: [
+    "Harness contract (enforced): structured text state only. Screenshot / image keys and data-URI / long base64 blobs are invalid_state. Never put pixels in Jev state.",
+    "Harness contract: ignore speculative targets that do not match `operation`. run_pack returns additive `guidance` with apply_* flags, ignore_targets, and effective_targets. Raw answers stay intact (schema-stable).",
+    "Harness contract: the writer LLM (or a stored value) owns typed strings. Jev never writes type_text / type_email content.",
+    "If required fields are missing, run_pack returns structured details.missing plus the same screenshots_forbidden / writer_owns_typed_string hint. Call describe_pack; do not guess.",
     "Code owns execution, OCR/AX/DOM, the writer LLM for free text, and stop rules. Jev only picks operation + target.",
-    "Pattern: structured state, not screenshots. An LLM is used only when the operation needs free text (type_text / type_email).",
     "Target Choices are speculative fan-out. The TypeSafe JS SDK accepts dynamic `choice(instructions, { [id]: description })` records; this pack builds those keys from `items[]` / `offscreen_items[]` at run_pack. Callers must pass a closed catalog — the MCP does not invent ids. If you cannot supply item ids, do not call this pack (do not send a screenshot instead).",
     "Reserved option ids: `none`, `unavailable`. Do not use them as item ids. TypeSafe Choice allows at most 255 options including `none`.",
-    "Thresholds (goal_achieved, observation_stale, step_confidence, operation.confidence) live in harness code, same idea as confidence gating on other packs.",
+    "Example thresholds (tune on your traces): stop if goal_achieved.noul ≥ 0.8 or operation is done; re-observe if observation_stale.noul ≥ 0.65 or step_confidence.score < 1.5; skip acting if operation.confidence < 0.45.",
+    "Speculative fan-out is one systemOne call: Choice operation plus a separate target Choice per op. The harness uses ONLY the target matching the selected operation (`guidance.effective_targets` / `harness_hints`). Ignore the others.",
+    "Each target question's premise names the assumed operation (questions are independent). Do not invent a combined target.",
+    "max_steps / max_candidates live in the harness. This MCP does not loop, cap, or execute.",
   ],
 };

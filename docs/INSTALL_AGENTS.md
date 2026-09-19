@@ -8,8 +8,10 @@ Skill: [`skills/mcp_jev/SKILL.md`](../skills/mcp_jev/SKILL.md)
 
 1. `git clone https://github.com/pedroknigge/mcp_jev.git ~/mcp_jev && ~/mcp_jev/scripts/install.sh`  
    Windows: `scripts\install.ps1`
-2. Paste the **keyless** JSON the script prints (Cursor + Claude Desktop).
-3. Restart the host → `ping` → `list_packs`.
+2. Paste the **keyless** snippets the script prints (or `mcp_jev hosts write all`).
+3. `mcp_jev doctor` → restart the host → `ping` → `list_packs`.
+
+Non-interactive install without a key writes `~/.mcp_jev/NOT_READY` and exits non-zero. Do not treat that as success.
 
 The script stores `TYPESAFE_API_KEY` **once** in `~/.mcp_jev/.env` (chmod 600). Host configs only need:
 
@@ -69,7 +71,7 @@ command = "/Users/YOU/.mcp_jev/bin/mcp_jev"
 
 `codex mcp add mcp_jev -- ~/.mcp_jev/bin/mcp_jev`
 
-## Grok / xAI
+## Grok
 
 `grok mcp add mcp_jev -- ~/.mcp_jev/bin/mcp_jev` plus `~/.grok/config.toml` `[mcp_servers.mcp_jev]`.
 
@@ -92,10 +94,10 @@ Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using 
 
 ## Verify
 
-`ping` (`api_key_set` from the user store) → `list_packs` → optional `describe_pack`. `npm test` never needs a live key.
+`mcp_jev doctor` → `scripts/verify-mcp.sh` (stdio smoke, no TypeSafe) → host `ping` → `list_packs` → optional `describe_pack`. `npm test` never needs a live key.
 
 ## Security
 
 - One key file: `~/.mcp_jev/.env`. Not in git, not in host JSON, not in chat.
 - `update.sh` / `update.ps1` preserve that file.
-- `ping` and `config status` never print the key.
+- `ping`, `config status`, and `doctor` never print the key.
