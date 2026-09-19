@@ -7,7 +7,10 @@ export type JsonSchema = {
   additionalProperties?: boolean | JsonSchema;
   items?: JsonSchema;
   minItems?: number;
+  maxItems?: number;
   minLength?: number;
+  maxLength?: number;
+  enum?: string[];
 };
 
 export type ChoiceQuestionDef = {

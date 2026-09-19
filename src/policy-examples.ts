@@ -41,6 +41,29 @@ export type CodeAuditSignals = {
   problem_severity: number;
 };
 
+export type I18nCopySignals = {
+  has_user_facing_hardcoded_copy: number;
+  should_migrate_to_i18n: number;
+  already_partially_internationalized: number;
+  i18n_debt: number;
+};
+
+/** Caller-owned gate for a multi-locale ship. Jev only returns the signals. */
+export function gateI18nCopy(signals: I18nCopySignals): "ok" | "glance" | "block" {
+  if (signals.i18n_debt >= 2.5) return "block";
+  if (signals.has_user_facing_hardcoded_copy >= 0.75 && signals.should_migrate_to_i18n >= 0.7) {
+    return "block";
+  }
+  if (
+    signals.has_user_facing_hardcoded_copy >= 0.55 ||
+    signals.should_migrate_to_i18n >= 0.55 ||
+    signals.i18n_debt >= 1.5
+  ) {
+    return "glance";
+  }
+  return "ok";
+}
+
 export function gateCodeAudit(answers: CodeAuditSignals): "ok" | "glance" | "deep_review" {
   const noulMax = Math.max(
     answers.wrong_layer,

@@ -4,7 +4,7 @@ description: >
   Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
   mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, PR audit, review
-  diff, code audit, verify gap, boundary check, file audit, intent routing, locale/country, computer-use /
+  diff, code audit, verify gap, boundary check, file audit, i18n / hardcoded UI copy, intent routing, locale/country, computer-use /
   GUI / browser / mobile harness, model router, Cursor, Claude, Codex, Grok, or
   Antigravity. If tools
   are absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
@@ -78,11 +78,12 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
-| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** tools |
+| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** tools |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
 | Per-file / full-repo / architecture / "try Jev on these files" | **`mcp_jev scan`** / **`code_audit`** Pass 1 (signals-first) — Full repo scan recipe. Not `pr_audit`. |
+| Hardcoded UI strings vs i18n (`t()` / locale files) | **`i18n_copy`** — recipe below. Not `code_audit`. |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
 | Claimed behavior vs named tests / CI | **`verify_gap`** — `verifyGapCodeGate` in caller code |
@@ -106,6 +107,7 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Proposed shell command → risk signals | `command_risk` | Not an allowlist. Sandbox still required. |
 | One claim vs named evidence → ship / add proof / block | `verify_gap` | Not `review_diff.test_gap` or `code_audit.missing_verification`. Jev does not write the test or compute `code_gate`. |
 | One module’s `imports[]` / `exports[]` → layering fix | `boundary_check` | Not a full-repo `code_audit`. Jev does not move files. |
+| One UI file + closed hardcoded-string catalog → migrate / debt / hottest extract | `i18n_copy` | Not `code_audit` (structure). Not a locale-file rewrite. Gate in caller (`gateI18nCopy`). |
 
 If the user wants a question that is not in a pack, say this server cannot do that. Offer a new in-repo pack (`CONTRIBUTING.md`) or the TypeSafe SDK.
 
@@ -197,6 +199,31 @@ Optional Mode B: `files[]` paths + short `batch_notes` (no bodies) → Choice `h
 
 Example gate: `gateCodeAudit` in `src/policy-examples.ts` → `ok` | `glance` | `deep_review`. Unit-test without a TypeSafe key.
 
+## Recipe: `i18n_copy`
+
+Per-file hardcoded UI-copy audit. Harness extracts a **closed** `candidates[]` catalog (max ~20; caller truncates). Jev does not rewrite the file or edit locale JSON.
+
+1. Scan one UI file (`tsx` / `jsx` / `vue` / `svelte`). Build `candidates[]` of `{ id, text, kind, line? }`. `kind` is closed: `jsx_text` | `jsx_attr` | `string_literal` | `toast` | `schema_message`.
+2. Set `uses_i18n_api` from a cheap grep (`t()`, `useTranslations`, `FormattedMessage`, `msg`). Optional `framework_i18n` (`next-intl` | `i18next` | `react-intl` | `lingui` | `none` | `unknown`) and `locale_files_present`.
+3. `run_pack` `i18n_copy`.
+4. Read Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized`, Score `i18n_debt` (0 clean → 3 blocking for a multi-locale ship), Choice `hottest_candidate` (only from `candidates[].id` plus `none`), Choice `primary_bucket` (`ui_copy` | `error_message` | `marketing` | `dev_only` | `mixed` | `none`).
+5. Example gate: `gateI18nCopy` in `src/policy-examples.ts` → `ok` | `glance` | `block`. Extract or block the ship **in the caller**.
+
+```json
+{
+  "path": "src/components/LoginForm.tsx",
+  "language": "tsx",
+  "framework_i18n": "next-intl",
+  "uses_i18n_api": false,
+  "locale_files_present": true,
+  "candidates": [
+    { "id": "login_heading", "text": "Login", "kind": "jsx_text", "line": 12 },
+    { "id": "submit_btn", "text": "Submit", "kind": "jsx_attr", "line": 40 },
+    { "id": "load_error", "text": "Error loading", "kind": "toast", "line": 55 }
+  ]
+}
+```
+
 ## Recipe: Full repo scan
 
 Do **not** dump a tree into `pr_audit` (path-token false positives, inflated `needs_review` / `block`). Tree → `code_audit` Pass 1.
@@ -238,7 +265,7 @@ One claim vs named evidence. `run_pack` `verify_gap` → Nouls `has_adequate_ver
 
 One module: pass `module`, closed `imports[]` / `exports[]`, optional `layer_hint` / `change_summary`. `run_pack` `boundary_check` → Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`, Score `boundary_risk`, Choice `fix` (`keep` \| `extract` \| `move_layer` \| `unclear`). Move or extract in **your** code.
 
-## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`, `verify_gap`)
+## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`, `verify_gap`, `i18n_copy`)
 
 Jev returns signals. **Your functions** decide. Unit-test those functions without a TypeSafe key (`src/policy-examples.ts`).
 
@@ -251,6 +278,8 @@ Jev returns signals. **Your functions** decide. Unit-test those functions withou
 `code_audit`: Nouls + severity → `gateCodeAudit` → `ok` | `glance` | `deep_review`. Aggregate across files in the harness.
 
 `verify_gap`: Nouls + `verification_gap` → `verifyGapCodeGate` → `ship` | `add_proof` | `block`.
+
+`i18n_copy`: Nouls + `i18n_debt` → `gateI18nCopy` → `ok` | `glance` | `block`. Extract strings in the harness.
 
 Example (copy into the harness): refuse a command if `is_destructive.noul ≥ 0.70` or `scope_matches.noul < 0.50`. Jev does not execute.
 
@@ -295,7 +324,7 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 ## Verify
 
 1. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
-2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 11. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
+2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 12. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
 3. **`list_packs`** — pick an `id` from the result.
 4. Then `describe_pack` / `run_pack`.
 
@@ -347,6 +376,7 @@ Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New p
 | `command_risk` | required `command`; optional `cwd`, `reason`, `allowed_roots` | Nouls `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. |
 | `verify_gap` | required `claim`; optional `evidence`, `diff_summary`, `change_summary`, `signals.has_tests_nearby` / `touches_money` / `touches_auth` / `is_generated` | Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`; Score `verification_gap`; Choice `next_proof` (`unit_test` \| `integration` \| `manual_check` \| `type_proof` \| `none_needed` \| `unclear`) | Compute **`code_gate`** (`verifyGapCodeGate`). Jev does not write the test. |
 | `boundary_check` | required `module`, `imports`, `exports`; optional `layer_hint`, `change_summary` | Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`; Score `boundary_risk`; Choice `fix` (`keep` \| `extract` \| `move_layer` \| `unclear`) | Extract / move / keep in caller code. |
+| `i18n_copy` | required `path`, `uses_i18n_api`, `candidates[]` (`id`,`text`,`kind` `jsx_text`\|`jsx_attr`\|`string_literal`\|`toast`\|`schema_message`, optional `line`; max 20); optional `language` (`tsx`\|`jsx`\|`vue`\|`svelte`), `framework_i18n` (`next-intl`\|`i18next`\|`react-intl`\|`lingui`\|`none`\|`unknown`), `locale_files_present`, `notes` | Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized`; Score `i18n_debt` (0 clean → 3 blocking); Choice `hottest_candidate` from `candidates[].id` plus `none`; Choice `primary_bucket` (`ui_copy` \| `error_message` \| `marketing` \| `dev_only` \| `mixed` \| `none`) | Truncate the catalog. `gateI18nCopy` → `ok` \| `glance` \| `block`. Do not rewrite locale files here. |
 
 ## Required workflow
 
@@ -377,6 +407,8 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Put experiment narrative in `pr_audit` `title` / `body` / `diff_summary`
 - Dump ~40 path-only files into `pr_audit` (inflates `needs_review` / `block`)
 - Treat path tokens (`budget`, `migration`, `finance`) as content truth — this pack does not read bodies
+- Dump a whole file or >20 strings into `i18n_copy` `candidates[]` (caller truncates; oversized catalogs are `invalid_state`)
+- Ask Jev to rewrite JSX or edit locale JSON on `i18n_copy` — extract in the caller after `gateI18nCopy`
 - Dump a whole monorepo or large excerpts into `code_audit` (Pass 1 is signals-only; Pass 2 caps excerpt at 1200 chars)
 - Put screenshots, binaries, or generated vendor trees in `code_audit` state
 - Put screenshots or image blobs in `computer_use_step` state

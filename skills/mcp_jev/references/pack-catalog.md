@@ -6,7 +6,7 @@ Exact pack ids, state fields, and question ids from the TypeScript pack definiti
 Regenerate: `npx tsx scripts/sync-skill-catalog.ts` (also `npm run sync-skill-catalog`).
 `npm test` fails if this file drifts from the registry.
 
-Registry order (11): `pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `review_diff`, `code_audit`, `skill_router`, `command_risk`, `verify_gap`, `boundary_check`.
+Registry order (12): `pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `review_diff`, `code_audit`, `skill_router`, `command_risk`, `verify_gap`, `boundary_check`, `i18n_copy`.
 
 Agent skill: [`../SKILL.md`](../SKILL.md). After `scripts/update.sh`, re-load that skill
 (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).
@@ -787,4 +787,86 @@ Required: `module`, `imports`, `exports`. `additionalProperties: false`.
 - Signals only. Distinct from code_audit.wrong_layer (per-file scan). This pack judges one module’s import/export boundary.
 - Thresholds live in caller code. Example: review if any leak Noul ≥ 0.65; treat as a hard look if boundary_risk.score ≥ 2.5 or crosses_layer.noul ≥ 0.75.
 - Closed fix catalog. Fork the pack in-repo if you need another action name.
+
+## `i18n_copy` 1.0.0
+
+**i18n copy.** Per-file hardcoded UI-copy audit: closed `candidates[]` in, Nouls for user-facing copy / migrate / already-partial, Score i18n_debt (0 clean → 3 blocking), Choice hottest_candidate from the catalog plus none, Choice primary_bucket.
+
+When to use: When a harness already extracted a short closed list of likely hardcoded strings from a UI file (tsx/jsx/vue/svelte) and needs a typed judgment — not a written rewrite and not a locale-file edit. Distinct from `code_audit` (engineering structure) and `review_diff` (diff risk). Compose the extract/block gate in your code (`gateI18nCopy`).
+
+### State
+
+Required: `path`, `uses_i18n_api`, `candidates`. `additionalProperties: false`.
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `path` | string | yes | File under review (one file per run_pack). |
+| `language` | string | no | Optional UI language id. |
+| `framework_i18n` | string | no | Optional i18n library the repo already uses, or `none` / `unknown`. |
+| `uses_i18n_api` | boolean | yes | Caller already thinks this file calls t() / useTranslations / equivalent. |
+| `candidates` | array | yes | Closed catalog of likely hardcoded strings. Caller truncates (max 20). Jev only picks hottest_candidate among these ids plus none. |
+| `candidates[].id` | string | yes | Stable caller id. Must be unique. Reserved: none, unavailable. |
+| `candidates[].text` | string | yes | The hardcoded string as extracted (max 240 chars). |
+| `candidates[].kind` | string | yes | Where the string sits in the file. |
+| `candidates[].line` | number | no | Optional 1-based line number. |
+| `locale_files_present` | boolean | no | Caller already thinks the repo has locale / messages files. |
+| `notes` | string | no | Optional one-line context (max 280 chars). Not a file dump. |
+
+### Questions
+
+`describe_pack` returns the static template below. `run_pack` may rebuild Choice options from state (`dynamic_choice_from_state`).
+
+- **noul** `has_user_facing_hardcoded_copy`
+- **noul** `should_migrate_to_i18n`
+- **noul** `already_partially_internationalized`
+- **score** `i18n_debt` — 4 rungs: Clean; Local leftover; Cross-cutting; Blocking for a multi-locale ship
+- **choice** `hottest_candidate` — options: `none` | `unavailable`
+- **choice** `primary_bucket` — options: `ui_copy` | `error_message` | `marketing` | `dev_only` | `mixed` | `none`
+
+### Example state
+
+```json
+{
+  "path": "src/components/LoginForm.tsx",
+  "language": "tsx",
+  "framework_i18n": "next-intl",
+  "uses_i18n_api": false,
+  "locale_files_present": true,
+  "candidates": [
+    {
+      "id": "login_heading",
+      "text": "Login",
+      "kind": "jsx_text",
+      "line": 12
+    },
+    {
+      "id": "submit_btn",
+      "text": "Submit",
+      "kind": "jsx_attr",
+      "line": 40
+    },
+    {
+      "id": "load_error",
+      "text": "Error loading",
+      "kind": "toast",
+      "line": 55
+    }
+  ],
+  "notes": "Login form. Locale files exist; this file does not call t() yet."
+}
+```
+
+### Suggested workflow
+
+1. In the harness, scan one UI file for likely hardcoded strings. Build a closed candidates[] catalog (id, text, kind, optional line). Truncate to ~20 — this pack rejects larger lists.
+1. Set uses_i18n_api from a cheap AST/grep (t(), useTranslations, FormattedMessage, msg). Set framework_i18n and locale_files_present if known.
+1. run_pack i18n_copy. Read Nouls has_user_facing_hardcoded_copy / should_migrate_to_i18n / already_partially_internationalized, then i18n_debt, then hottest_candidate (only from candidates[].id) and primary_bucket.
+1. Example gate: src/policy-examples.ts gateI18nCopy → ok | glance | block. Extract or block the multi-locale ship in the caller. Jev does not rewrite the file or edit locale JSON.
+
+### Notes
+
+- hottest_candidate options are the closed candidates[].id catalog plus none. The MCP does not invent ids. Caller truncates to max 20.
+- Thresholds live in caller code (gateI18nCopy is an example). Jev does not extract strings, write locale files, or compute a repo-wide i18n grade.
+- Distinct from code_audit (engineering structure) and review_diff (diff risk). Use this pack when the question is hardcoded UI copy vs i18n.
+- Noul answers have no separate confidence field — the probability is the belief. Choice and Score include probabilities plus confidence.
 

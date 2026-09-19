@@ -32,7 +32,7 @@ test("smoke-all-packs.mjs runs every pack through mocked TypeSafe", () => {
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /smoke-all-packs: mocked/);
   assert.match(result.stdout, /pack\s+ok\s+ms\s+error/);
-  for (const id of [
+  const packIds = [
     "pr_audit",
     "intent_router",
     "locale_country",
@@ -44,10 +44,12 @@ test("smoke-all-packs.mjs runs every pack through mocked TypeSafe", () => {
     "command_risk",
     "verify_gap",
     "boundary_check",
-  ]) {
+    "i18n_copy",
+  ];
+  for (const id of packIds) {
     assert.match(result.stdout, new RegExp(`^${id}\\s+true\\s+`, "m"));
   }
-  assert.match(result.stdout, /11\/11 ok/);
+  assert.match(result.stdout, new RegExp(`${packIds.length}/${packIds.length} ok`));
   assert.ok(!result.stdout.includes("sk-must-not-be-used"));
   assert.ok(!result.stderr.includes("sk-must-not-be-used"));
 });
@@ -62,6 +64,6 @@ test("smoke-all-packs --live skips in CI without SMOKE_LIVE=1", () => {
   });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /skip --live in CI/);
-  assert.doesNotMatch(result.stdout, /11\/11 ok/);
+  assert.doesNotMatch(result.stdout, /\d+\/\d+ ok/);
   assert.ok(!result.stdout.includes("sk-must-not-be-used"));
 });
