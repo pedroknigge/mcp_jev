@@ -184,7 +184,8 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Command risk signals | `command_risk` |
 | Generic diff review | `review_diff` |
 | Repo tree / architecture / "try Jev on these files" | `mcp_jev scan` → `code_audit` (Pass 1; not `pr_audit`) |
-| Money / hours / migration **PR-shaped** merge risk | `pr_audit` |
+| Domain example: money / labor-hours / migration **PR-shaped** merge risk | `pr_audit` |
+| Item / SKU locale from a **caller-supplied** closed country list | `locale_country` |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
 
@@ -202,7 +203,7 @@ Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap` → Cho
 
 Example thresholds: request review if any Noul ≥ 0.65; block if `security.noul ≥ 0.75` or `severity.score ≥ 2.5`.
 
-`pr_audit` remains the money / hours / migration merge pack — **PR-shaped state only** (`title` / `body` / `files` / `diff_summary`). Distinct id. Do not rename. Do not use it for a repo-tree scan (`code_audit`). Never put experiment narrative in `title`/`body`. Large path-only batches (~40 files) inflate `needs_review`/`block`; path tokens (`budget`, `migration`, `finance`) move Nouls without reading bodies.
+`pr_audit` is a **domain example** pack (money / labor-hours / migration merge risk, common in ops/fintech) — **not** the universal PR pack. Keep the id. **PR-shaped state only** (`title` / `body` / `files` / `diff_summary`). General users should start with `review_diff` (diff) or `code_audit` (tree). Do not use `pr_audit` for a repo-tree scan. Never put experiment narrative in `title`/`body`. Large path-only batches (~40 files) inflate `needs_review`/`block`; path tokens (`budget`, `migration`, `finance`) move Nouls without reading bodies.
 
 ### `code_audit` (full-repo / per-file scan)
 
@@ -370,17 +371,19 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 
 | id | What Jev judges | What **you** still do |
 | --- | --- | --- |
-| `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. Jev does not merge or comment |
-| `review_diff` | Nouls correctness / security / reliability / compat / test_gap; Choice `hotspot_file` from `files[]`; Score `severity` | Orchestration stays in the caller |
+| `pr_audit` | **Domain example** (ops/fintech): `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. Jev does not merge or comment. Prefer `review_diff` / `code_audit` for general PR/tree review |
+| `review_diff` | Nouls correctness / security / reliability / compat / test_gap; Choice `hotspot_file` from `files[]`; Score `severity` | **Default generic PR/diff pack.** Orchestration stays in the caller |
 | `code_audit` | Nouls `wrong_layer` / `blast_radius` / `missing_verification` / `secret_or_credential_risk` / `inefficiency` / `dead_or_premature_abstraction`; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Pass 1: signals-only, ~RTT per file, N workers. Pass 2: short excerpt on top-N. Aggregate + `gateCodeAudit` in code |
 | `skill_router` | Noul `needs_skill`; Choice `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. Thresholds in your code |
 | `command_risk` | Nouls `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. Signals only |
 | `intent_router` | Closed intent Choice, jailbreak + policy Nouls, urgency Score | Route / refuse / hand off in code |
-| `locale_country` | Catalogue item → Argentina \| USA \| India \| Uruguay \| Saudi Arabia (or `unclear`) | Write the country to your catalogue |
+| `locale_country` | Catalogue item → one id from the caller’s closed `countries[]` catalog (or `unclear`) | Pass your own country list. Write the country to your catalogue |
 | `computer_use_step` | Next GUI `operation` + speculative targets; Nouls `goal_achieved` / `observation_stale`; Score `step_confidence`; additive `guidance` | Observe (OCR/AX/DOM), execute the op, writer LLM for typed text, stop rules |
 | `model_router` | `route` (fast_local \| strong_reasoner \| tools_heavy \| ask_user \| skip); Nouls code/browser/unsafe/lookup; Score `difficulty` | Map the lane in code. Thresholds stay in the caller |
 
 Packs live in `src/packs/` (in-repo). How to add one: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**Breaking (`locale_country` 2.0.0):** country Choice options are no longer a hardcoded country list. Callers must pass `countries[]` (closed catalog of their own ids, e.g. `us`, `de`, `jp`). `unclear` remains the pack-owned refuse option.
 
 ## Architecture
 

@@ -1,17 +1,75 @@
-import type { PackDefinition } from "./types.js";
+import { UNAVAILABLE_OPTION, readStringCatalog, stringCatalogChoiceCriteria } from "./catalog-choice.js";
+import type { PackDefinition, PackQuestion } from "./types.js";
+
+/** Pack-owned refuse option — not a country the caller can file under. */
+export const UNCLEAR_OPTION = "unclear";
+
+const UNCLEAR_DESCRIPTION =
+  "No reliable country signal among the closed `countries` catalog, or cues for several catalog entries with no winner.";
+
+const TEMPLATE_COUNTRY_CRITERIA = {
+  [UNCLEAR_OPTION]: UNCLEAR_DESCRIPTION,
+  [UNAVAILABLE_OPTION]:
+    "Placeholder in describe_pack. At run_pack this key is replaced by one option per closed `countries[]` id (or kept if the catalog is empty).",
+};
+
+function countryQuestion(state: Record<string, unknown>): PackQuestion {
+  const countries = readStringCatalog(state.countries);
+  return {
+    type: "choice",
+    id: "country",
+    instructions:
+      "Which closed-catalog country in `countries` is the item in `name` (and `description`, `hints` if present) most likely filed under? Use language, spelling, units, place names, and product keywords. Do not guess from a generic name with no local cue. Do not invent a country outside `countries`.",
+    criteria: stringCatalogChoiceCriteria(countries, UNCLEAR_DESCRIPTION, "countries", UNCLEAR_OPTION),
+  };
+}
+
+function staticQuestions(): PackQuestion[] {
+  return [
+    {
+      type: "choice",
+      id: "country",
+      instructions:
+        "Which `countries[]` id should this item be filed under? run_pack builds options from the closed catalog (plus `unclear`).",
+      criteria: { ...TEMPLATE_COUNTRY_CRITERIA },
+    },
+    {
+      type: "noul",
+      id: "explicit_geo_cue",
+      instructions:
+        "Does `name`, `description`, or `hints` contain an explicit geographic cue (country, city, region, currency, or national standard) for one of the closed `countries` catalog entries?",
+      criteria: {
+        true: "A place, currency, or national standard matching a catalog country is stated.",
+        false: "Only language style or generic product words, or no geo cue at all.",
+      },
+    },
+    {
+      type: "score",
+      id: "locale_signal",
+      instructions:
+        "How strong is the country-local signal in `name`, `description`, and `hints` relative to the closed `countries` catalog?",
+      criteria: [
+        "No local signal; the text could belong anywhere.",
+        "Weak language or unit hints only.",
+        "Clear language plus trade terms, but no explicit place.",
+        "Explicit country, city, currency, or national standard.",
+      ],
+    },
+  ];
+}
 
 export const localeCountryPack: PackDefinition = {
   id: "locale_country",
-  version: "1.0.0",
+  version: "2.0.0",
   title: "Locale country",
   summary:
-    "Classify a construction or catalogue item into Argentina, USA, India, Uruguay, or Saudi Arabia from language and keywords in name/description.",
+    "Classify an item into one country from the caller's closed `countries[]` catalog (plus `unclear`) using language and keywords in name/description/hints.",
   when_to_use:
-    "When cataloguing materials, SKUs, or construction items that should be filed under one of those five countries. Bootstrap pack from real catalogue-localization use. Not a general geocoder and not for people or addresses.",
+    "When you already have a closed list of country ids and need to file a catalogue item, SKU, or similar record under exactly one of them. Not a general geocoder and not for people or addresses. This pack does not ship a built-in country list.",
   state_schema: {
     type: "object",
     additionalProperties: false,
-    required: ["name"],
+    required: ["name", "countries"],
     properties: {
       name: {
         type: "string",
@@ -27,65 +85,35 @@ export const localeCountryPack: PackDefinition = {
         description: "Optional extra keywords already extracted by the caller (units, brand, city).",
         items: { type: "string" },
       },
+      countries: {
+        type: "array",
+        description:
+          "Closed catalog of country ids the caller will accept (slugs or ISO-style codes). Jev only picks among these plus `unclear`. This MCP does not invent ids.",
+        minItems: 1,
+        items: { type: "string", minLength: 1 },
+      },
     },
   },
   example_state: {
-    name: "Cemento Portland CPC40 bolsa 50kg",
-    description: "Cemento de uso general para obras en hormigón. Entrega en Montevideo y Canelones.",
-    hints: ["bolsa", "hormigón"],
+    name: "A4 printer paper 80 g/m² 500 sheets",
+    description: "Metric office paper with DIN A4 size marking.",
+    hints: ["DIN", "A4", "g/m²"],
+    countries: ["us", "de", "jp"],
   },
-  questions: [
-    {
-      type: "choice",
-      id: "country",
-      instructions:
-        "Which country is the construction or catalogue item in `name` (and `description`, `hints` if present) most likely filed under? Use language, spelling, units, place names, and product keywords. Do not guess from a generic English name with no local cue.",
-      criteria: {
-        argentina:
-          "Argentina: Rioplatense or Argentine Spanish cues (vos, hormigón, chapa, San Martín, CABA, ARS, IRAM).",
-        usa: "United States: US English, imperial units (psi, 2x4, gallon), ASTM/ANSI, or US place/brand cues.",
-        india:
-          "India: Indian English, INR/GST, IS codes, metric bags with Indian city/state or Hindi/other Indian-language terms.",
-        uruguay:
-          "Uruguay: Uruguayan Spanish cues (Montevideo, Canelones, UYU, DGI, or clearly UY construction trade terms).",
-        saudi_arabia:
-          "Saudi Arabia: Arabic script, SAR, SASO, or Saudi city/region and Gulf construction trade cues.",
-        unclear:
-          "No reliable country signal among the five, or cues for several countries with no winner.",
-      },
-    },
-    {
-      type: "noul",
-      id: "explicit_geo_cue",
-      instructions:
-        "Does `name`, `description`, or `hints` contain an explicit geographic cue (country, city, region, currency, or national standard) for one of Argentina, USA, India, Uruguay, or Saudi Arabia?",
-      criteria: {
-        true: "A place, currency, or national standard for one of those countries is stated.",
-        false: "Only language style or generic product words, or no geo cue at all.",
-      },
-    },
-    {
-      type: "score",
-      id: "locale_signal",
-      instructions:
-        "How strong is the country-local signal in `name`, `description`, and `hints`?",
-      criteria: [
-        "No local signal; the text could belong anywhere.",
-        "Weak language or unit hints only.",
-        "Clear language plus trade terms, but no explicit place.",
-        "Explicit country, city, currency, or national standard.",
-      ],
-    },
-  ],
+  questions: staticQuestions(),
+  questionsForState: (state) =>
+    staticQuestions().map((question) => (question.id === "country" ? countryQuestion(state) : question)),
   suggested_workflow: [
-    "Pass the catalogue name. Add description and any pre-extracted hints.",
-    "run_pack locale_country.",
+    "Pass the item name plus your closed countries[] catalog. Add description and any pre-extracted hints.",
+    "run_pack locale_country. Choice options are exactly those catalog ids plus unclear.",
     "If country.choice is unclear, or country.confidence is low, or locale_signal.score is below 2, leave the item unfiled or send it to a human.",
-    "If explicit_geo_cue.noul is high, the Choice is usually safe to accept even when the name is short.",
-    "Write the country onto the SKU in your database. This pack does not update catalogues.",
+    "If explicit_geo_cue.noul is high, the Choice is usually safer to accept even when the name is short.",
+    "Write the country onto the record in your own store. This pack does not update catalogues.",
   ],
   notes: [
-    "Closed set: Argentina, USA, India, Uruguay, Saudi Arabia, plus unclear. Do not invent a sixth country through this MCP.",
-    "Language alone is weak (Spanish covers Argentina and Uruguay). Prefer explicit_geo_cue and locale_signal before committing.",
+    "Breaking in 2.0.0: country options are no longer a fixed five-country list. Callers must pass countries[] (closed catalog). The MCP does not invent ids.",
+    "Closed set: the caller’s countries[] plus unclear. Do not treat a sixth id as valid unless it was in the catalog.",
+    "Language alone is weak when several catalog entries share a language. Prefer explicit_geo_cue and locale_signal before committing.",
+    "unclear and unavailable are pack-owned. Do not put those strings in countries[].",
   ],
 };

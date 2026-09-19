@@ -71,8 +71,12 @@ test("pr_audit documents that code_gate is caller-owned", () => {
   assert.ok(pack.notes.some((note) => note.includes("does not read file bodies")));
   assert.ok(pack.notes.some((note) => note.includes("experiment narrative")));
   assert.ok(pack.summary.includes("Staged review"));
+  assert.ok(pack.summary.includes("Domain example"));
   assert.ok(pack.when_to_use.includes("staged review"));
   assert.ok(pack.when_to_use.includes("code_audit"));
+  assert.ok(pack.when_to_use.includes("review_diff"));
+  assert.match(JSON.stringify(pack.example_state), /payroll|overtime/);
+  assert.doesNotMatch(JSON.stringify(pack.example_state), /\/Users\/|Desktop\//);
 });
 
 test("unknown pack_id is a clear error", () => {

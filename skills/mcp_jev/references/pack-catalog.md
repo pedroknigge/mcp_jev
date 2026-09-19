@@ -11,11 +11,11 @@ Registry order (9): `pr_audit`, `intent_router`, `locale_country`, `computer_use
 Agent skill: [`../SKILL.md`](../SKILL.md). After `scripts/update.sh`, re-load that skill
 (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).
 
-## `pr_audit` 1.0.0
+## `pr_audit` 1.1.0
 
-**PR audit.** Typed merge-risk judgment for a pull request. Staged review: risk Nouls (money/hours/boundary/migration) → closed-catalog file Choice from `files[]` in caller code → severity Score `blast_radius` (plus Choice `merge_risk`).
+**PR audit (domain example).** Domain example pack for money / labor-hours / migration merge risk (common in ops and fintech) — not the universal PR pack. Staged review: risk Nouls (money/hours/boundary/migration) → closed-catalog file Choice from `files[]` in caller code → severity Score `blast_radius` (plus Choice `merge_risk`). Generic PR/diff review is `review_diff`; repo trees are `code_audit`.
 
-When to use: Before merging or auto-approving a PR when you need calibrated risk signals. Use as a staged review workflow: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Only for PR-shaped merge risk (title/body/files/diff_summary/flags) — not a repo-tree, architecture, or 'try Jev on these files' scan (use `code_audit`). Do not use Jev to write the review comment or to compute the final gate.
+When to use: When the change is framed as money, labor-hours, or schema/data-migration merge risk and you already have PR-shaped state (title/body/files/diff_summary/flags). Not the default PR pack: use `review_diff` for generic diff review and `code_audit` for repo-tree / architecture / file-list scans. Use as a staged review: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Do not use Jev to write the review comment or to compute the final gate.
 
 ### State
 
@@ -75,7 +75,7 @@ Required: `title`, `body`, `files`, `diff_summary`. `additionalProperties: false
 
 - Staged review is caller-owned: risk Nouls → file Choice over `files[]` → severity Score. This pack already fans out the Nouls, merge_risk, and blast_radius in one systemOne call; compose the file Choice in your code from the same `files[]` list (closed catalog).
 - code_gate is computed by the caller, not Jev. Example: block if merge_risk is block, or money.noul is high, or hours_money_boundary.noul is high, or migration.noul is high with blast_radius.score >= 2. Tune thresholds on your own data.
-- Not a repo-tree pack. `code_audit` is the file-list / architecture scan. This pack requires PR-shaped title/body/files/diff_summary.
+- Domain example, not the universal PR pack. Keep this id. Generic diff review is `review_diff`; repo-tree / architecture / file-list scans are `code_audit`. This pack requires PR-shaped title/body/files/diff_summary.
 - Never put experiment narrative in title/body. Flags either match paths honestly or are all false for an explicit path-only test — pick one.
 - This pack does not read file bodies. Path tokens (budget, migration, finance, payroll) move money/migration Nouls. For content truth use a real diff_summary or `code_audit` Pass 2 excerpt.
 - Large path-only batches (~40 files) with no real diff inflate merge_risk toward needs_review/block. Prefer the actual PR file set or `code_audit` per-file.
@@ -132,25 +132,28 @@ Required: `message`. `additionalProperties: false`.
 - Compose routing in code. Jev does not invoke handlers.
 - Aligned with TypeSafe's intent-routing pattern: classify first, then send only the cases that need an LLM or a human.
 
-## `locale_country` 1.0.0
+## `locale_country` 2.0.0
 
-**Locale country.** Classify a construction or catalogue item into Argentina, USA, India, Uruguay, or Saudi Arabia from language and keywords in name/description.
+**Locale country.** Classify an item into one country from the caller's closed `countries[]` catalog (plus `unclear`) using language and keywords in name/description/hints.
 
-When to use: When cataloguing materials, SKUs, or construction items that should be filed under one of those five countries. Bootstrap pack from real catalogue-localization use. Not a general geocoder and not for people or addresses.
+When to use: When you already have a closed list of country ids and need to file a catalogue item, SKU, or similar record under exactly one of them. Not a general geocoder and not for people or addresses. This pack does not ship a built-in country list.
 
 ### State
 
-Required: `name`. `additionalProperties: false`.
+Required: `name`, `countries`. `additionalProperties: false`.
 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `name` | string | yes | Item or SKU name as shown in the catalogue. |
 | `description` | string | no | Optional longer description, specs, or notes. |
 | `hints` | array | no | Optional extra keywords already extracted by the caller (units, brand, city). |
+| `countries` | array | yes | Closed catalog of country ids the caller will accept (slugs or ISO-style codes). Jev only picks among these plus `unclear`. This MCP does not invent ids. |
 
 ### Questions
 
-- **choice** `country` — options: `argentina` | `usa` | `india` | `uruguay` | `saudi_arabia` | `unclear`
+`describe_pack` returns the static template below. `run_pack` may rebuild Choice options from state (`dynamic_choice_from_state`).
+
+- **choice** `country` — options: `unclear` | `unavailable`
 - **noul** `explicit_geo_cue`
 - **score** `locale_signal` — 4 rungs: No local signal; the text could belong anywhere.; Weak language or unit hints only.; Clear language plus trade terms, but no explicit place.; Explicit country, city, currency, or national standard.
 
@@ -158,27 +161,35 @@ Required: `name`. `additionalProperties: false`.
 
 ```json
 {
-  "name": "Cemento Portland CPC40 bolsa 50kg",
-  "description": "Cemento de uso general para obras en hormigón. Entrega en Montevideo y Canelones.",
+  "name": "A4 printer paper 80 g/m² 500 sheets",
+  "description": "Metric office paper with DIN A4 size marking.",
   "hints": [
-    "bolsa",
-    "hormigón"
+    "DIN",
+    "A4",
+    "g/m²"
+  ],
+  "countries": [
+    "us",
+    "de",
+    "jp"
   ]
 }
 ```
 
 ### Suggested workflow
 
-1. Pass the catalogue name. Add description and any pre-extracted hints.
-1. run_pack locale_country.
+1. Pass the item name plus your closed countries[] catalog. Add description and any pre-extracted hints.
+1. run_pack locale_country. Choice options are exactly those catalog ids plus unclear.
 1. If country.choice is unclear, or country.confidence is low, or locale_signal.score is below 2, leave the item unfiled or send it to a human.
-1. If explicit_geo_cue.noul is high, the Choice is usually safe to accept even when the name is short.
-1. Write the country onto the SKU in your database. This pack does not update catalogues.
+1. If explicit_geo_cue.noul is high, the Choice is usually safer to accept even when the name is short.
+1. Write the country onto the record in your own store. This pack does not update catalogues.
 
 ### Notes
 
-- Closed set: Argentina, USA, India, Uruguay, Saudi Arabia, plus unclear. Do not invent a sixth country through this MCP.
-- Language alone is weak (Spanish covers Argentina and Uruguay). Prefer explicit_geo_cue and locale_signal before committing.
+- Breaking in 2.0.0: country options are no longer a fixed five-country list. Callers must pass countries[] (closed catalog). The MCP does not invent ids.
+- Closed set: the caller’s countries[] plus unclear. Do not treat a sixth id as valid unless it was in the catalog.
+- Language alone is weak when several catalog entries share a language. Prefer explicit_geo_cue and locale_signal before committing.
+- unclear and unavailable are pack-owned. Do not put those strings in countries[].
 
 ## `computer_use_step` 1.1.0
 
@@ -401,14 +412,14 @@ Required: `user_request`. `additionalProperties: false`.
 - Lane semantics (closed catalog — do not invent a sixth lane): fast_local = cheap/local or no model (lookup, format, one obvious tool); strong_reasoner = ambiguous design, hard failure, or a plan that is not yet mechanical; tools_heavy = long tool/browser/shell loop more than a single model burst; ask_user = missing preference, secret, or confirmation (especially irreversible); skip = already done, blocked, or out of scope.
 - Example thresholds (caller-owned; tune on your traces): if route.confidence < 0.45 → treat as ask_user; if unsafe_or_irreversible.noul ≥ 0.70 → refuse or confirm before tools_heavy / strong_reasoner; if simple_lookup.noul ≥ 0.75 and difficulty.score < 1.5 → force fast_local; if needs_browser.noul ≥ 0.70 and route is fast_local → consider tools_heavy; if difficulty.score ≥ 2.5 and route is fast_local → consider strong_reasoner.
 - Thresholds live in caller code, not in this MCP.
-- Compose with other packs: use model_router first, then intent_router for an utterance, computer_use_step for a GUI catalog, review_diff for a generic diff, code_audit for a per-file structured audit, or pr_audit for a money/hours merge.
+- Compose with other packs: use model_router first, then intent_router for an utterance, computer_use_step for a GUI catalog, review_diff for a generic diff, code_audit for a per-file structured audit, or pr_audit (domain example) for a money/hours/migration merge.
 - Closed route catalog. Fork the pack in-repo if you need another lane name.
 
 ## `review_diff` 1.0.0
 
 **Review diff.** Staged diff review: Nouls correctness / security / reliability / compat / test_gap, Choice hotspot_file from the closed files[] catalog, Score severity. Orchestration stays in the caller.
 
-When to use: When you already have a short diff summary and a closed list of changed paths and need typed review risks — not a written review comment. Compose gates in your code. Prefer this over `pr_audit` when the change is not framed as a money/hours/migration merge. Do not use Jev to post comments or compute the final gate.
+When to use: Default pack for generic PR/diff review when you already have a short diff summary and a closed list of changed paths — not a written review comment. Compose gates in your code. Prefer this over `pr_audit` (a domain example for money/hours/migration merge risk). Do not use Jev to post comments or compute the final gate.
 
 ### State
 
@@ -469,13 +480,13 @@ Required: `diff_summary`, `files`. `additionalProperties: false`.
 - Staged review is caller-owned: risk Nouls → hotspot_file Choice over files[] → severity Score. This pack fans them out in one systemOne call.
 - hotspot_file options are the closed files[] catalog plus none. The MCP does not invent paths.
 - Thresholds live in caller code. Example: request review if any Noul ≥ 0.65; block if security.noul ≥ 0.75 or severity.score ≥ 2.5; open hotspot_file when it is not none.
-- code_gate / comments / merges stay in the caller. Distinct from pr_audit (money/hours/migration merge risk).
+- code_gate / comments / merges stay in the caller. Distinct from pr_audit (domain example: money/hours/migration merge risk).
 
 ## `code_audit` 1.0.0
 
 **Code audit.** Millisecond-tier per-file structured engineering audit: compact signals in, typed Nouls / Scores / primary_concern out. Latency is send/receive RTT per file — parallelize N workers. Pass 1 is signals-only over all files; Pass 2 adds a short excerpt on top-N only.
 
-When to use: When a harness already listed files and computed compact per-file signals and needs typed ratings — not a written review and not a multi-second LLM pass. Default: one run_pack per file with path + signals (no body). Prefer this pack when the user asks to try/audit Jev on a repo tree, architecture, or file list — `pr_audit` is not the only files[] pack and is PR-shaped merge risk only. Distinct from review_diff (a short diff) and pr_audit (money/hours/migration merge). Compose gates in your code.
+When to use: When a harness already listed files and computed compact per-file signals and needs typed ratings — not a written review and not a multi-second LLM pass. Default: one run_pack per file with path + signals (no body). Prefer this pack when the user asks to try/audit Jev on a repo tree, architecture, or file list — `pr_audit` is a domain example for PR-shaped money/hours/migration merge risk, not the file-list pack. Distinct from review_diff (generic short diff) and pr_audit (domain merge example). Compose gates in your code.
 
 ### State
 
@@ -553,7 +564,7 @@ Required: none at the top level (see pack notes for Mode A / Mode B). `additiona
 - Mode A (preferred): one file per run_pack. Mode B: files[] + batch_notes, Choice hotspot_file. When both path and files exist, single-file Mode A wins.
 - The harness owns excerpt truncation. This pack rejects bodies over the cap. Screenshots, binaries, and generated/vendor dirs stay out.
 - Thresholds live in caller code (gateCodeAudit is an example). Jev does not write a review comment or compute a repo-wide grade.
-- Distinct from review_diff (short diff + files[] hotspot) and pr_audit (money/hours/migration merge). Repo-tree / architecture / 'try Jev on these files' → this pack (Pass 1 signals-first), not pr_audit. Use `mcp_jev scan` instead of dumping paths into pr_audit.
+- Distinct from review_diff (generic short diff + files[] hotspot) and pr_audit (domain example: money/hours/migration merge). Repo-tree / architecture / 'try Jev on these files' → this pack (Pass 1 signals-first), not pr_audit. Use `mcp_jev scan` instead of dumping paths into pr_audit.
 - Noul answers have no separate confidence field — the probability is the belief. Choice and Score include probabilities plus confidence.
 
 ## `skill_router` 1.0.0
