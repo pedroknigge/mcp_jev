@@ -132,6 +132,62 @@ test("run_questions validates schema before calling TypeSafe", async () => {
   }
 });
 
+test("parseCustomRunInput accepts score levels and choice options aliases", () => {
+  const viaLevels = parseCustomRunInput({
+    state: { cmd: "rm -rf /" },
+    questions: [
+      {
+        id: "blast_radius",
+        type: "score",
+        instructions: "How bad if wrong?",
+        levels: ["local", "team", "prod"],
+      },
+      {
+        id: "action",
+        type: "choice",
+        instructions: "Gate",
+        options: {
+          allow: "run",
+          ask_user: "confirm",
+          refuse: "stop",
+        },
+      },
+    ],
+  });
+  assert.deepEqual(
+    (viaLevels.questions.find((q) => q.id === "blast_radius") as { criteria: string[] }).criteria,
+    ["local", "team", "prod"],
+  );
+  assert.deepEqual(
+    Object.keys(
+      (viaLevels.questions.find((q) => q.id === "action") as { criteria: Record<string, string> }).criteria,
+    ).sort(),
+    ["allow", "ask_user", "refuse"],
+  );
+});
+
+test("parseCustomRunInput rejects conflicting criteria and levels", () => {
+  assert.throws(
+    () =>
+      parseCustomRunInput({
+        state: { x: 1 },
+        questions: [
+          {
+            id: "debt",
+            type: "score",
+            instructions: "Debt",
+            criteria: ["a", "b"],
+            levels: ["x", "y"],
+          },
+        ],
+      }),
+    (err: unknown) =>
+      err instanceof ToolError &&
+      err.code === "invalid_questions" &&
+      /both criteria and levels/.test(err.message),
+  );
+});
+
 test("parseCustomRunInput enforces Choice cap and JSON state", () => {
   const tooMany: Record<string, string> = {};
   for (let i = 0; i < MAX_CHOICE_OPTIONS + 1; i += 1) {

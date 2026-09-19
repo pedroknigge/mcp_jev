@@ -100,12 +100,21 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
     return `${prefix} must be an object with id, type, instructions, and type-specific criteria`;
   }
 
-  const extras = Object.keys(raw).filter((key) => !QUESTION_KEYS.has(key));
+  // Agent dogfood: Score often arrives as `levels` instead of `criteria`; Choice as `options`.
+  // Normalize only when `criteria` is absent.
+  const normalized = normalizeQuestionAliases(raw, prefix);
+  if (typeof normalized === "string") {
+    return normalized;
+  }
+  const question = normalized;
+
+  const extras = Object.keys(question).filter((key) => !QUESTION_KEYS.has(key));
   if (extras.length > 0) {
-    return `${prefix} has unknown field(s): ${extras.join(", ")}`;
+    const hint = aliasHint(extras, question.type);
+    return `${prefix} has unknown field(s): ${extras.join(", ")}${hint}`;
   }
 
-  const id = raw.id;
+  const id = question.id;
   if (typeof id !== "string" || !QUESTION_ID.test(id)) {
     return `${prefix}.id must be a snake_case identifier (e.g. hottest_candidate)`;
   }
@@ -114,18 +123,18 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
   }
   seen.add(id);
 
-  const type = raw.type;
+  const type = question.type;
   if (typeof type !== "string" || !QUESTION_TYPES.has(type)) {
     return `${prefix}.type must be "choice", "noul", or "score"`;
   }
 
-  const instructions = raw.instructions;
+  const instructions = question.instructions;
   if (typeof instructions !== "string" || instructions.trim().length === 0) {
     return `${prefix}.instructions must be a non-empty string`;
   }
 
   if (type === "choice") {
-    const criteria = parseChoiceCriteria(raw.criteria, prefix);
+    const criteria = parseChoiceCriteria(question.criteria, prefix);
     if (typeof criteria === "string") {
       return criteria;
     }
@@ -133,7 +142,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
   }
 
   if (type === "noul") {
-    const criteria = parseNoulCriteria(raw.criteria, prefix);
+    const criteria = parseNoulCriteria(question.criteria, prefix);
     if (typeof criteria === "string") {
       return criteria;
     }
@@ -142,11 +151,58 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
       : { id, type: "noul", instructions: instructions.trim() };
   }
 
-  const criteria = parseScoreCriteria(raw.criteria, prefix);
+  const criteria = parseScoreCriteria(question.criteria, prefix);
   if (typeof criteria === "string") {
     return criteria;
   }
   return { id, type: "score", instructions: instructions.trim(), criteria };
+}
+
+/** Common agent typos → canonical `criteria`. Fail closed if both are set and differ. */
+function normalizeQuestionAliases(
+  raw: Record<string, unknown>,
+  prefix: string,
+): Record<string, unknown> | string {
+  const type = raw.type;
+  const out: Record<string, unknown> = { ...raw };
+
+  if (type === "score" && "levels" in out) {
+    if (out.criteria === undefined) {
+      out.criteria = out.levels;
+      delete out.levels;
+    } else if (JSON.stringify(out.criteria) === JSON.stringify(out.levels)) {
+      delete out.levels;
+    } else {
+      return `${prefix} has both criteria and levels; use criteria (ordered string[]) only`;
+    }
+  }
+
+  if (type === "choice" && "options" in out) {
+    if (out.criteria === undefined) {
+      out.criteria = out.options;
+      delete out.options;
+    } else if (JSON.stringify(out.criteria) === JSON.stringify(out.options)) {
+      delete out.options;
+    } else {
+      return `${prefix} has both criteria and options; use criteria (closed Record) only`;
+    }
+  }
+
+  return out;
+}
+
+function aliasHint(extras: string[], type: unknown): string {
+  const bits: string[] = [];
+  if (extras.includes("levels")) {
+    bits.push("for score use criteria: string[] (not levels)");
+  }
+  if (extras.includes("options")) {
+    bits.push("for choice use criteria: Record (not options)");
+  }
+  if (extras.includes("legend") && type === "score") {
+    bits.push("legend is an answer field, not an input — put ordered labels in criteria");
+  }
+  return bits.length > 0 ? `. Hint: ${bits.join("; ")}` : "";
 }
 
 function parseChoiceCriteria(value: unknown, prefix: string): Record<string, string> | string {
