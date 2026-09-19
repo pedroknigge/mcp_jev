@@ -123,7 +123,7 @@ mcp_jev doctor          # checkout, dist, wrapper, api_key_set (boolean), host r
 
 On the host, after restart:
 
-1. **`ping`** — `ok`, `packs` ≥ 9, `api_key_set` boolean. Never invent `run_pack` answers if the key is missing.
+1. **`ping`** — `ok`, `packs` ≥ 11, `api_key_set` boolean. Never invent `run_pack` answers if the key is missing.
 2. **`list_packs`** — pick an `id`.
 3. **`describe_pack`** then **`run_pack`**.
 
@@ -186,8 +186,12 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Repo tree / architecture / "try Jev on these files" | `mcp_jev scan` → `code_audit` (Pass 1; not `pr_audit`) |
 | Domain example: money / labor-hours / migration **PR-shaped** merge risk | `pr_audit` |
 | Item / SKU locale from a **caller-supplied** closed country list | `locale_country` |
+| Claimed behavior vs named tests / CI | `verify_gap` |
+| One module’s imports/exports vs layer | `boundary_check` |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
+
+`verify_gap`: one claim vs named evidence → `verifyGapCodeGate` (`ship` \| `add_proof` \| `block`). `boundary_check`: one module’s imports/exports → `fix` (`keep` \| `extract` \| `move_layer` \| `unclear`).
 
 ### `review_diff` (staged review)
 
@@ -380,6 +384,8 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 | `locale_country` | Catalogue item → one id from the caller’s closed `countries[]` catalog (or `unclear`) | Pass your own country list. Write the country to your catalogue |
 | `computer_use_step` | Next GUI `operation` + speculative targets; Nouls `goal_achieved` / `observation_stale`; Score `step_confidence`; additive `guidance` | Observe (OCR/AX/DOM), execute the op, writer LLM for typed text, stop rules |
 | `model_router` | `route` (fast_local \| strong_reasoner \| tools_heavy \| ask_user \| skip); Nouls code/browser/unsafe/lookup; Score `difficulty` | Map the lane in code. Thresholds stay in the caller |
+| `verify_gap` | Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`; Score `verification_gap` (0 none → 3 ship-blocker); Choice `next_proof` | Compute **`code_gate`** (`verifyGapCodeGate` → ship \| add_proof \| block). Jev does not write the test |
+| `boundary_check` | Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`; Score `boundary_risk`; Choice `fix` (keep \| extract \| move_layer \| unclear) | Extract / move / keep in caller code |
 
 Packs live in `src/packs/` (in-repo). How to add one: [CONTRIBUTING.md](CONTRIBUTING.md).
 

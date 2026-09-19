@@ -7,6 +7,7 @@ import { validatePackState } from "../src/validate.js";
 test("pack registry loads the starter packs", () => {
   const ids = listPacks().map((pack) => pack.id).sort();
   assert.deepEqual(ids, [
+    "boundary_check",
     "code_audit",
     "command_risk",
     "computer_use_step",
@@ -16,8 +17,9 @@ test("pack registry loads the starter packs", () => {
     "pr_audit",
     "review_diff",
     "skill_router",
+    "verify_gap",
   ]);
-  assert.equal(packCount(), 9);
+  assert.equal(packCount(), 11);
 });
 
 test("each pack has versioned metadata, schema, example, and questions", () => {

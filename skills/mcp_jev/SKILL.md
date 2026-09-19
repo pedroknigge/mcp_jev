@@ -4,7 +4,7 @@ description: >
   Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
   mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, PR audit, review
-  diff, code audit, file audit, intent routing, locale/country, computer-use /
+  diff, code audit, verify gap, boundary check, file audit, intent routing, locale/country, computer-use /
   GUI / browser / mobile harness, model router, Cursor, Claude, Codex, Grok, or
   Antigravity. If tools
   are absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
@@ -77,13 +77,15 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
-| A judgment that exists as a pack (`review_diff`, `code_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** tools |
+| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** tools |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
 | Per-file / full-repo / architecture / "try Jev on these files" | **`mcp_jev scan`** / **`code_audit`** Pass 1 (signals-first) — Full repo scan recipe. Not `pr_audit`. |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
+| Claimed behavior vs named tests / CI | **`verify_gap`** — `verifyGapCodeGate` in caller code |
+| One module’s imports/exports vs layer | **`boundary_check`** |
 | Designing new TypeSafe questions / SDK code | Official **TypeSafe skill** (`npx skills add typesafe-ai/skills --skill typesafe-ai`) |
 | Prose, patches, reasoning, typed-in text | A **plain LLM** (you) |
 | Merge, comment, refund, catalogue write, clicks | **Your code / other MCPs** after typed answers |
@@ -101,6 +103,8 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Catalogue / SKU → one country from the caller’s closed `countries[]` list | `locale_country` | Not a geocoder for people or addresses. No built-in country list. |
 | Closed skill names → load one or none | `skill_router` | Not a model lane. Not a GUI step. |
 | Proposed shell command → risk signals | `command_risk` | Not an allowlist. Sandbox still required. |
+| One claim vs named evidence → ship / add proof / block | `verify_gap` | Not `review_diff.test_gap` or `code_audit.missing_verification`. Jev does not write the test or compute `code_gate`. |
+| One module’s `imports[]` / `exports[]` → layering fix | `boundary_check` | Not a full-repo `code_audit`. Jev does not move files. |
 
 If the user wants a question that is not in a pack, say this server cannot do that. Offer a new in-repo pack (`CONTRIBUTING.md`) or the TypeSafe SDK.
 
@@ -207,7 +211,15 @@ mcp_jev scan . --concurrency 16 --pass2 5
 
 The CLI walks the tree (respects `.gitignore`; skips binaries, images, lockfiles, `node_modules`, `.git`, common generated dirs), builds compact per-file signals (`loc`, `import_count`, `top_imports`, `has_tests_nearby`, `touches_money` / `touches_auth` / `touches_migration` path heuristics as **signals only**, `is_generated`, `complexity_heuristic`), and calls `code_audit` in parallel (~RTT/file). `--pass2 N` re-runs the hottest N with an excerpt ≤1200 chars. Prints JSONL plus a summary table (top severity, `primary_concern` histogram, hottest paths). Missing API key → clear error (except `--dry-run`).
 
-## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`)
+## Recipe: `verify_gap`
+
+One claim vs named evidence. `run_pack` `verify_gap` → Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`, Score `verification_gap` (0 none → 3 ship-blocker), Choice `next_proof` (`unit_test` \| `integration` \| `manual_check` \| `type_proof` \| `none_needed` \| `unclear`). Compute **`code_gate` in the caller** (`verifyGapCodeGate` → `ship` \| `add_proof` \| `block`).
+
+## Recipe: `boundary_check`
+
+One module: pass `module`, closed `imports[]` / `exports[]`, optional `layer_hint` / `change_summary`. `run_pack` `boundary_check` → Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`, Score `boundary_risk`, Choice `fix` (`keep` \| `extract` \| `move_layer` \| `unclear`). Move or extract in **your** code.
+
+## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`, `verify_gap`)
 
 Jev returns signals. **Your functions** decide. Unit-test those functions without a TypeSafe key (`src/policy-examples.ts`).
 
@@ -218,6 +230,8 @@ Jev returns signals. **Your functions** decide. Unit-test those functions withou
 `model_router`: model cascade — map `route.choice` to models/tools in code.
 
 `code_audit`: Nouls + severity → `gateCodeAudit` → `ok` | `glance` | `deep_review`. Aggregate across files in the harness.
+
+`verify_gap`: Nouls + `verification_gap` → `verifyGapCodeGate` → `ship` | `add_proof` | `block`.
 
 Example (copy into the harness): refuse a command if `is_destructive.noul ≥ 0.70` or `scope_matches.noul < 0.50`. Jev does not execute.
 
@@ -261,7 +275,7 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 ## Verify
 
 1. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
-2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 9. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
+2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 11. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
 3. **`list_packs`** — pick an `id` from the result.
 4. Then `describe_pack` / `run_pack`.
 
@@ -311,6 +325,8 @@ Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New p
 | `code_audit` | Mode A: `path` + optional `language`, `role_hint`, `signals` (`loc`, `import_count`, `top_imports` max 8, `has_tests_nearby`, `touches_money`, `touches_auth`, `is_generated`, `complexity_heuristic`), `repo_context` (max 280), Pass 2 `excerpt` (max 1200). Mode B: `files[]` + `batch_notes` (max 400). `path` wins if both set. | Nouls `wrong_layer` / `blast_radius` / `missing_verification` / `secret_or_credential_risk` / `inefficiency` / `dead_or_premature_abstraction`; Scores `problem_severity` + `change_cost`; Choice `primary_concern` (`none` \| `layering` \| `blast_radius` \| `verification` \| `security` \| `performance` \| `abstraction` \| `other`); Mode B adds Choice `hotspot_file` | Pass 1 signals-only (~RTT, N workers). Pass 2 short excerpt on top-N. `gateCodeAudit` in code. |
 | `skill_router` | required `user_request`, `available_skills`; optional `agent_so_far` | Noul `needs_skill`; Choice `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. |
 | `command_risk` | required `command`; optional `cwd`, `reason`, `allowed_roots` | Nouls `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. |
+| `verify_gap` | required `claim`; optional `evidence`, `diff_summary`, `change_summary`, `signals.has_tests_nearby` / `touches_money` / `touches_auth` / `is_generated` | Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`; Score `verification_gap`; Choice `next_proof` (`unit_test` \| `integration` \| `manual_check` \| `type_proof` \| `none_needed` \| `unclear`) | Compute **`code_gate`** (`verifyGapCodeGate`). Jev does not write the test. |
+| `boundary_check` | required `module`, `imports`, `exports`; optional `layer_hint`, `change_summary` | Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`; Score `boundary_risk`; Choice `fix` (`keep` \| `extract` \| `move_layer` \| `unclear`) | Extract / move / keep in caller code. |
 
 ## Required workflow
 
@@ -336,7 +352,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Invent `ask_jev` or free-form questions
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
 - Treat non-interactive install without a key as success (`NOT_READY` / doctor must fail)
-- Ask Jev for `code_gate` on `pr_audit` or `review_diff`
+- Ask Jev for `code_gate` on `pr_audit`, `review_diff`, or `verify_gap`
 - Route a repo-tree / architecture / "try Jev on these files" scan to `pr_audit` (`code_audit` Pass 1 is the file-list pack)
 - Put experiment narrative in `pr_audit` `title` / `body` / `diff_summary`
 - Dump ~40 path-only files into `pr_audit` (inflates `needs_review` / `block`)
