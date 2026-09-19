@@ -1,6 +1,6 @@
 {
   "name": "mcp_jev",
-  "version": "0.2.0",
+  "version": "0.0.9",
   "description": "Local MCP server for TypeSafe Jev (System One): run typed Choice / Noul / Score packs, not chat.",
   "type": "module",
   "main": "dist/index.js",

@@ -186,7 +186,7 @@ fi
 say ""
 say "Then: mcp_jev doctor → restart the MCP host → ping → list_packs"
 say "Smoke (no TypeSafe call): $REPO_HOME/scripts/verify-mcp.sh"
-say "Update later:  $REPO_HOME/scripts/update.sh"
+say "Update later (GitHub checkout, not npm):  $REPO_HOME/scripts/update.sh"
 say ""
 say "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 say "SKILL REFRESH — hosts do not auto-reload skills after pull."

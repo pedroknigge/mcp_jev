@@ -1,8 +1,5 @@
-# Publishes mcp_jev to npm and opens a GitHub Release.
+# GitHub Release only. Does not publish to the npm registry.
 # Trigger: git tag v* only. Does not run on pull_request.
-#
-# Required repo secret (set by the maintainer before the first tag):
-#   NPM_TOKEN  — npm automation token with publish access to mcp_jev
 name: release
 
 on:
@@ -14,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -23,7 +20,6 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
@@ -39,11 +35,12 @@ jobs:
             echo "tag $GITHUB_REF_NAME != package.json version $pkg" >&2
             exit 1
           fi
-      - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists"
+          else
+            gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi

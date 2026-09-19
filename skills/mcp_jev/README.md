@@ -21,7 +21,7 @@ The skill does not start Jev. From the repo:
 
 ```bash
 ./scripts/install.sh    # key once → keyless host snippets
-./scripts/update.sh     # pull + build; keeps ~/.mcp_jev/.env
+./scripts/update.sh     # GitHub pull + build (not npm); keeps ~/.mcp_jev/.env
 mcp_jev doctor          # checkout, dist, wrapper, key boolean
 mcp_jev smoke           # stdio initialize / tools / ping / list_packs (no TypeSafe)
 ./scripts/verify-mcp.sh # same smoke as a script

@@ -55,7 +55,7 @@ Do **not** invent `ask_jev` or pretend Jev ran. Tell the user to install from th
 3. **Host config:** paste or `mcp_jev hosts write all`. Command = `~/.mcp_jev/bin/mcp_jev`.
 4. Restart the host. Call **`ping`**, then **`list_packs`**.
 
-Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → **reload this skill** → restart host.
+Update later from this GitHub checkout (not npm): `~/mcp_jev/scripts/update.sh` (preserves the key) → **reload this skill** → restart host.
 
 ### After `update.sh` — reload this skill
 
