@@ -44,6 +44,8 @@ test("SKILL.md covers every registry pack id and points at the catalog", () => {
   assert.match(skill, /mcp_jev config set-key/);
   assert.match(skill, /mcp_jev config status/);
   assert.match(skill, /mcp_jev config path/);
+  assert.match(skill, /mcp_jev scan/);
+  assert.match(skill, /dist\/cli\.js scan/);
 
   for (const pack of listPacks()) {
     assert.ok(skill.includes(`\`${pack.id}\``), `SKILL.md missing pack id ${pack.id}`);
@@ -82,6 +84,9 @@ test("SKILL.md routes tree scans to code_audit and documents pr_audit pitfalls",
   assert.match(skill, /does \*\*not\*\* read file bodies/);
   assert.match(skill, /budget/);
   assert.match(skill, /[Pp]ath-only test/);
+  assert.match(skill, /Recipe: Full repo scan/);
+  assert.match(skill, /mcp_jev scan/);
+  assert.match(skill, /Tree → `code_audit`/);
 });
 
 test("README pack table covers the same registry ids", () => {

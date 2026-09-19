@@ -69,6 +69,8 @@ test("code_audit describe and example stay internally consistent", () => {
   assert.ok(pack.notes.some((note) => /Pass 1/i.test(note)));
   assert.ok(pack.notes.some((note) => /RTT/i.test(note)));
   assert.ok(pack.notes.some((note) => /1200/i.test(note)));
+  assert.ok(pack.suggested_workflow.some((step) => /mcp_jev scan/.test(step)));
+  assert.ok(pack.notes.some((note) => /mcp_jev scan/.test(note)));
   assert.equal("excerpt" in pack.example_state, false);
   assert.ok(pack.example_state.signals && typeof pack.example_state.signals === "object");
   assert.ok(!/pstack/i.test(JSON.stringify(described)));

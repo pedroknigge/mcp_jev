@@ -3,11 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { stdin as stdinStream, stdout as stdoutStream } from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { loadConfig } from "./config.js";
 import { formatDoctorReport, runDoctor, wrapperPath } from "./doctor.js";
 import { formatHostSnippets, parseHostIds, writeHostConfigs, type HostId } from "./hosts.js";
 import { clearNotReadyMarker } from "./ready.js";
+import { parseScanArgs, runScan, SCAN_HELP } from "./scan.js";
 import {
   defaultRepoHome,
   defaultUserConfigDir,
@@ -27,6 +29,9 @@ Usage:
   mcp_jev doctor --json       Same, machine-readable (never includes the key)
   mcp_jev hosts print         Keyless snippets for Cursor/Claude/Codex/Grok/Antigravity
   mcp_jev hosts write [ids]   Merge snippets into host configs (all or comma list)
+  mcp_jev scan <path>         code_audit Pass 1 over a repo (signals-only, parallel)
+  mcp_jev scan <path> --dry-run
+  mcp_jev scan <path> --pass2 N [--concurrency N]
   mcp_jev config set-key      Store TYPESAFE_API_KEY in ~/.mcp_jev/.env (once)
   mcp_jev config set-key KEY  Same, non-interactive
   mcp_jev config status       Show paths and api_key_set (never prints the key)
@@ -82,6 +87,50 @@ export async function runCli(argv: string[]): Promise<void> {
       console.log(formatDoctorReport(report).trimEnd());
     }
     if (!report.ready) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (cmd === "scan") {
+    const scanArgv = [sub, ...rest].filter((item): item is string => Boolean(item));
+    let args;
+    try {
+      args = parseScanArgs(scanArgv, process.env);
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+      return;
+    }
+    if (args.help) {
+      console.log(SCAN_HELP.trimEnd());
+      return;
+    }
+    if (!args.root) {
+      console.error("scan requires a path. Try: mcp_jev scan . --dry-run");
+      process.exitCode = 1;
+      return;
+    }
+    const root = path.resolve(args.root);
+    if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+      console.error(`scan path is not a directory: ${args.root}`);
+      process.exitCode = 1;
+      return;
+    }
+    const config = loadConfig(process.env, { userConfigDir: configDir });
+    try {
+      const { summary } = await runScan({
+        root,
+        concurrency: args.concurrency,
+        dryRun: args.dryRun,
+        pass2: args.pass2,
+        config,
+      });
+      if (summary.errors > 0) {
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
     }
     return;
@@ -162,4 +211,15 @@ export async function runCli(argv: string[]): Promise<void> {
 
   console.error(`Unknown config command "${sub ?? ""}". Try: mcp_jev config status`);
   process.exitCode = 1;
+}
+
+const invokedAsScript =
+  Boolean(process.argv[1]) && path.resolve(process.argv[1]!) === fileURLToPath(import.meta.url);
+
+if (invokedAsScript) {
+  runCli(process.argv.slice(2)).catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`mcp_jev failed: ${message}`);
+    process.exit(1);
+  });
 }

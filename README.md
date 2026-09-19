@@ -127,7 +127,7 @@ On the host, after restart:
 2. **`list_packs`** — pick an `id`.
 3. **`describe_pack`** then **`run_pack`**.
 
-CLI: `mcp_jev doctor` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
+CLI: `mcp_jev doctor` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
 
 ## Recipes
 
@@ -183,7 +183,7 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Skill select from a closed list | `skill_router` |
 | Command risk signals | `command_risk` |
 | Generic diff review | `review_diff` |
-| Repo tree / architecture / "try Jev on these files" | `code_audit` (Pass 1; not `pr_audit`) |
+| Repo tree / architecture / "try Jev on these files" | `mcp_jev scan` → `code_audit` (Pass 1; not `pr_audit`) |
 | Money / hours / migration **PR-shaped** merge risk | `pr_audit` |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
@@ -208,9 +208,19 @@ Example thresholds: request review if any Noul ≥ 0.65; block if `security.noul
 
 Millisecond-tier structured engineering audit (layering / blast-radius / verification style checks). **Expect ~network RTT per file; parallelize N workers.** This is not a multi-second LLM review. Jev must not receive the monorepo as prose.
 
+**First-class harness:** `mcp_jev scan <path>` (or `node dist/cli.js scan`). Do **not** dump a tree into `pr_audit`.
+
+```bash
+mcp_jev scan . --dry-run                 # files + signals; no TypeSafe
+mcp_jev scan .                           # Pass 1, concurrency 8
+mcp_jev scan . --concurrency 16 --pass2 5
+```
+
+Walks the tree (respects `.gitignore`; skips binaries, images, lockfiles, `node_modules`, `.git`, generated dirs), builds compact signals, and calls `code_audit` through the same `run_pack` / `systemOne` path. Prints JSONL plus a summary table (top severity, `primary_concern` histogram, hottest paths). Missing API key → clear error (except `--dry-run`).
+
 **Pass 1 (default, all files):** harness lists files → filter screenshots/binaries/generated vendor dirs → compact `signals` only → parallel `run_pack` `code_audit` → aggregate top `problem_severity` / most frequent Nouls.
 
-**Pass 2 (top-N only):** resend the hottest files with a short `excerpt` (hard max 1200 chars; oversized → `invalid_state`) for confirmation.
+**Pass 2 (top-N only):** resend the hottest files with a short `excerpt` (hard max 1200 chars; oversized → `invalid_state`) for confirmation. `--pass2 N` on the CLI.
 
 Example gate (`src/policy-examples.ts` `gateCodeAudit`): `ok` | `glance` | `deep_review`. Unit-test the gate without a TypeSafe key.
 
@@ -400,10 +410,11 @@ flowchart LR
 | `MCP_JEV_CHECKOUT` | No | Git checkout (default `~/mcp_jev` or the repo you ran the script from) |
 | `MCP_JEV_WRITE_HOSTS` | No | Install-time host write (`all` or comma list) |
 | `MCP_JEV_SYNC_SKILL` | No | If `1`, install/update copy `skills/mcp_jev` into an existing `.cursor/skills` dir |
+| `MCP_JEV_SCAN_CONCURRENCY` | No | Default parallel workers for `mcp_jev scan` (8) |
 
 Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.
 
-CLI: `mcp_jev doctor` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
+CLI: `mcp_jev doctor` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
 
 ## Security
 
@@ -420,7 +431,7 @@ CLI: `mcp_jev doctor` · `mcp_jev hosts print` · `mcp_jev config set-key` · `m
 | --- | --- |
 | `doctor` / `NOT_READY` | Non-interactive install without a key. Run `mcp_jev config set-key`, then `mcp_jev doctor`. |
 | `ping` → `api_key_set: false` | Same. Confirm `~/.mcp_jev/.env` exists. Restart the host. |
-| `run_pack` → `missing_api_key` | Same. Do not fabricate answers. |
+| `run_pack` / `scan` → `missing_api_key` | Same. `--dry-run` still works. Do not fabricate answers. |
 | `run_pack` → `auth` | Key rejected (HTTP 401). Rotate at the TypeSafe dashboard, then `config set-key`. |
 | `invalid_state` | Re-read `describe_pack`. Starter packs reject extra fields. `computer_use_step` also rejects screenshots. |
 | `unknown_pack` | `list_packs`. There is no `ask_jev`. |

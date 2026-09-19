@@ -81,7 +81,7 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
-| Per-file / full-repo / architecture / "try Jev on these files" | **`code_audit`** Pass 1 (signals-first) — recipe below. Not `pr_audit`. |
+| Per-file / full-repo / architecture / "try Jev on these files" | **`mcp_jev scan`** / **`code_audit`** Pass 1 (signals-first) — Full repo scan recipe. Not `pr_audit`. |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
 | Designing new TypeSafe questions / SDK code | Official **TypeSafe skill** (`npx skills add typesafe-ai/skills --skill typesafe-ai`) |
@@ -96,7 +96,7 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
 | Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
 | Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | Orchestration stays in the caller. Not `pr_audit` (money/hours/migration). |
-| Repo tree / architecture / "try or audit Jev on these files" | `code_audit` | Pass 1 signals-only (~RTT, N workers). **`pr_audit` is not the only file-list pack.** |
+| Repo tree / architecture / "try or audit Jev on these files" | `code_audit` via `mcp_jev scan` | Pass 1 signals-only (~RTT, N workers). **`pr_audit` is not the only file-list pack.** |
 | PR-shaped merge risk only: `title` / `body` / `files` / `diff_summary` / optional `flags` | `pr_audit` | Not a tree scan. Jev does not write the review or compute `code_gate`. |
 | Catalogue SKU → one of five countries | `locale_country` | Not a geocoder for people or addresses. |
 | Closed skill names → load one or none | `skill_router` | Not a model lane. Not a GUI step. |
@@ -183,6 +183,21 @@ Optional Mode B: `files[]` paths + short `batch_notes` (no bodies) → Choice `h
 
 Example gate: `gateCodeAudit` in `src/policy-examples.ts` → `ok` | `glance` | `deep_review`. Unit-test without a TypeSafe key.
 
+## Recipe: Full repo scan
+
+Do **not** dump a tree into `pr_audit` (path-token false positives, inflated `needs_review` / `block`). Tree → `code_audit` Pass 1.
+
+First-class harness (same `run_pack` / `systemOne` path):
+
+```bash
+mcp_jev scan . --dry-run                 # files + signals; no TypeSafe
+mcp_jev scan .                           # Pass 1, concurrency 8
+mcp_jev scan . --concurrency 16 --pass2 5
+# or: node dist/cli.js scan .
+```
+
+The CLI walks the tree (respects `.gitignore`; skips binaries, images, lockfiles, `node_modules`, `.git`, common generated dirs), builds compact per-file signals (`loc`, `import_count`, `top_imports`, `has_tests_nearby`, `touches_money` / `touches_auth` / `touches_migration` path heuristics as **signals only**, `is_generated`, `complexity_heuristic`), and calls `code_audit` in parallel (~RTT/file). `--pass2 N` re-runs the hottest N with an excerpt ≤1200 chars. Prints JSONL plus a summary table (top severity, `primary_concern` histogram, hottest paths). Missing API key → clear error (except `--dry-run`).
+
 ## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`)
 
 Jev returns signals. **Your functions** decide. Unit-test those functions without a TypeSafe key (`src/policy-examples.ts`).
@@ -227,6 +242,7 @@ No-args starts the stdio MCP server. Commands (never print the TypeSafe key):
 | `mcp_jev config set-key KEY` | Same, non-interactive |
 | `mcp_jev config status` | Paths + `api_key_set` / `api_key_source` (never the secret) |
 | `mcp_jev config path` | Print the user config directory |
+| `mcp_jev scan <path>` | Full-repo `code_audit` Pass 1 (signals-only, parallel). `--dry-run`, `--concurrency N`, `--pass2 N`. Also `node dist/cli.js scan`. |
 | `mcp_jev help` | Usage |
 
 ## Key is installed once
@@ -334,6 +350,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 | `MCP_JEV_CHECKOUT` | Git checkout (default `~/mcp_jev`) |
 | `MCP_JEV_WRITE_HOSTS` | Optional install-time host write |
 | `MCP_JEV_SYNC_SKILL` | If `1`, `install.sh` / `update.sh` copy `skills/mcp_jev` into an **existing** `$REPO_HOME/.cursor/skills` or `~/.cursor/skills` |
+| `MCP_JEV_SCAN_CONCURRENCY` | Default parallel workers for `mcp_jev scan` (default 8) |
 | `TYPESAFE_BASE_URL` / `JEV_MODEL` / `TYPESAFE_DEFAULT_MODEL` | Optional |
 
 The user store wins; process env is fallback only. Repo `.env` is not auto-loaded.
