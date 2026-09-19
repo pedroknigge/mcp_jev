@@ -69,7 +69,7 @@ Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
-| Per-file / full-repo structured audit (layering / blast-radius / verification) | **`code_audit`** — recipe below |
+| Per-file / full-repo structured audit (signals-first, ~RTT) | **`code_audit`** — recipe below |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
 | Designing new TypeSafe questions / SDK code | Official **TypeSafe skill** (`npx skills add typesafe-ai/skills --skill typesafe-ai`) |
