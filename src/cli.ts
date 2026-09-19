@@ -32,7 +32,8 @@ Usage:
   mcp_jev hosts write [ids]   Merge snippets into host configs (all or comma list)
   mcp_jev scan <path>         code_audit Pass 1 over a repo (signals-only, parallel)
   mcp_jev scan <path> --dry-run
-  mcp_jev scan <path> --pass2 N [--concurrency N]
+  mcp_jev scan <path> --concurrency 16 --summary-only --jsonl scan.jsonl
+  mcp_jev scan <path> --pass2 N [--resume] [--max-files N]
   mcp_jev smoke               Stdio initialize / tools / ping / list_packs (no TypeSafe)
   mcp_jev config set-key      Store TYPESAFE_API_KEY in ~/.mcp_jev/.env (once)
   mcp_jev config set-key KEY  Same, non-interactive
@@ -126,6 +127,12 @@ export async function runCli(argv: string[]): Promise<void> {
         concurrency: args.concurrency,
         dryRun: args.dryRun,
         pass2: args.pass2,
+        top: args.top,
+        maxFiles: args.maxFiles,
+        resume: args.resume,
+        checkpointEvery: args.checkpointEvery,
+        jsonlPath: args.jsonlPath || undefined,
+        summaryOnly: args.summaryOnly,
         config,
       });
       if (summary.errors > 0) {

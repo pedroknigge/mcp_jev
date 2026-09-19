@@ -87,6 +87,7 @@ test("SKILL.md routes tree scans to code_audit and documents pr_audit pitfalls",
   assert.match(skill, /budget/);
   assert.match(skill, /[Pp]ath-only test/);
   assert.match(skill, /Recipe: Full repo scan/);
+  assert.match(skill, /6000 files/);
   assert.match(skill, /mcp_jev scan/);
   assert.match(skill, /Tree → `code_audit`/);
   assert.match(skill, /[Dd]omain example/);

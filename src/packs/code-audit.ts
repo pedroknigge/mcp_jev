@@ -305,7 +305,7 @@ export const codeAuditPack: PackDefinition = {
   questionsForState,
   enforceState: enforceCodeAuditState,
   suggested_workflow: [
-    "First-class harness: `mcp_jev scan <path>` (or `node dist/cli.js scan`). Pass 1 over the tree (signals-only, parallel, ~RTT/file); `--pass2 N` confirms top-N with excerpt ≤1200. `--dry-run` lists files+signals without TypeSafe.",
+    "First-class harness: `mcp_jev scan <path>` (or `node dist/cli.js scan`). Pass 1 over the tree (signals-only, parallel, ~RTT/file); `--pass2 N` confirms top-N with excerpt ≤1200. `--dry-run` lists files+signals without TypeSafe. Large-repo (6000 files / ~2 min class): `--concurrency 16 --summary-only --jsonl out.jsonl`, read top severity + path-token FP note, then `--pass2 N`. `--resume` continues from `.mcp_jev-scan-checkpoint.json`.",
     "Pass 1 (default, milliseconds): list files; filter screenshots, binaries, generated/vendor dirs; for every remaining file build path + language + role_hint + compact signals (no excerpt). Parallelize N workers — expect ~network RTT per file, not a multi-second review.",
     "One systemOne call per file returns the Nouls, problem_severity, change_cost, and primary_concern. Aggregate in code: top severity, most frequent high Nouls.",
     "Pass 2: only top-N severity/hotspot files get a second run_pack with a short excerpt (hard max 1200 chars) for confirmation. Do not excerpt the whole tree.",

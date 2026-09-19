@@ -7,3 +7,5 @@ dist/
 coverage/
 
 # User key store lives in ~/.mcp_jev/ (outside the repo). Never commit a copied .env.
+.mcp_jev-scan-checkpoint.json
+.mcp_jev-scan-checkpoint.json.tmp
