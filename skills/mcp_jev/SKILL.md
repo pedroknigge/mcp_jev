@@ -81,7 +81,7 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
-| Per-file / full-repo structured audit (signals-first, ~RTT) | **`code_audit`** — recipe below |
+| Per-file / full-repo / architecture / "try Jev on these files" | **`code_audit`** Pass 1 (signals-first) — recipe below. Not `pr_audit`. |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
 | Designing new TypeSafe questions / SDK code | Official **TypeSafe skill** (`npx skills add typesafe-ai/skills --skill typesafe-ai`) |
@@ -96,8 +96,8 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
 | Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
 | Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | Orchestration stays in the caller. Not `pr_audit` (money/hours/migration). |
-| Per-file or full-repo scan: compact signals → typed ratings in ~RTT | `code_audit` | Pass 1 signals-only over all files; Pass 2 short excerpt on top-N. Not a multi-second review. |
-| Pull request merge risk (money / hours / migration) | `pr_audit` | Jev does not write the review or compute `code_gate`. |
+| Repo tree / architecture / "try or audit Jev on these files" | `code_audit` | Pass 1 signals-only (~RTT, N workers). **`pr_audit` is not the only file-list pack.** |
+| PR-shaped merge risk only: `title` / `body` / `files` / `diff_summary` / optional `flags` | `pr_audit` | Not a tree scan. Jev does not write the review or compute `code_gate`. |
 | Catalogue SKU → one of five countries | `locale_country` | Not a geocoder for people or addresses. |
 | Closed skill names → load one or none | `skill_router` | Not a model lane. Not a GUI step. |
 | Proposed shell command → risk signals | `command_risk` | Not an allowlist. Sandbox still required. |
@@ -136,9 +136,24 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → treat as `ask_u
 
 `pr_audit` is the separate money/hours/migration merge pack. Keep both ids.
 
+## Recipe: `pr_audit`
+
+**Only for a PR-shaped merge.** Required state: `title`, `body`, `files`, `diff_summary`. Optional `flags.touches_money` / `touches_hours` / `migration`. If the user says try/audit Jev on a repo tree, architecture, or file list, use **`code_audit`** — do not reach for `pr_audit` just because you have paths.
+
+1. `title` / `body` / `diff_summary` describe **the change**, not the experiment. Never put "testing Jev", "dogfood", or "try audit" narrative in those fields.
+2. Keep `files[]` to the actual PR set. A ~40-path "no signal" dump inflates `merge_risk` toward `needs_review` / `block`. Smaller batches, or `code_audit` per-file for tree scans.
+3. Flags — pick one mode:
+   - **Honest:** flags match paths (`billing/` → `touches_money`, `migrations/` → `migration`, `timesheet/` → `touches_hours`).
+   - **Path-only test:** all flags `false` so you can see what path tokens alone do.
+   - Do not mix a test story with honest flags.
+4. `run_pack` `pr_audit`. Read Nouls `money` / `hours` / `hours_money_boundary` / `migration`, Choice `merge_risk` (`safe_ui` \| `needs_review` \| `block`), Score `blast_radius`. Compute **`code_gate` in the caller**.
+5. **Path false positives:** this pack does **not** read file bodies. Tokens in paths (`budget`, `migration`, `finance`, `payroll`) move money/migration Nouls even when the file is a comment or a fixture. For content truth use a real `diff_summary` or `code_audit` Pass 2 `excerpt` (≤1200).
+
 ## Recipe: `code_audit`
 
 Millisecond-tier. **~network RTT per file; parallelize N workers.** Not a multi-second LLM review. Do not send the monorepo as prose.
+
+**This is the file-list pack.** Repo tree / architecture / "try Jev on these files" → Pass 1 here. `pr_audit` is PR-shaped merge risk only.
 
 **Pass 1 (default, all files):** list files → filter screenshots/binaries/generated vendor dirs → `run_pack` `code_audit` with signals-only state → aggregate top `problem_severity` / most frequent Nouls.
 
@@ -297,6 +312,10 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
 - Treat non-interactive install without a key as success (`NOT_READY` / doctor must fail)
 - Ask Jev for `code_gate` on `pr_audit` or `review_diff`
+- Route a repo-tree / architecture / "try Jev on these files" scan to `pr_audit` (`code_audit` Pass 1 is the file-list pack)
+- Put experiment narrative in `pr_audit` `title` / `body` / `diff_summary`
+- Dump ~40 path-only files into `pr_audit` (inflates `needs_review` / `block`)
+- Treat path tokens (`budget`, `migration`, `finance`) as content truth — this pack does not read bodies
 - Dump a whole monorepo or large excerpts into `code_audit` (Pass 1 is signals-only; Pass 2 caps excerpt at 1200 chars)
 - Put screenshots, binaries, or generated vendor trees in `code_audit` state
 - Put screenshots or image blobs in `computer_use_step` state

@@ -65,6 +65,7 @@ test("code_audit describe and example stay internally consistent", () => {
   );
   assert.ok(pack.summary.includes("Millisecond-tier"));
   assert.ok(pack.when_to_use.includes("one run_pack per file"));
+  assert.ok(pack.when_to_use.includes("repo tree"));
   assert.ok(pack.notes.some((note) => /Pass 1/i.test(note)));
   assert.ok(pack.notes.some((note) => /RTT/i.test(note)));
   assert.ok(pack.notes.some((note) => /1200/i.test(note)));

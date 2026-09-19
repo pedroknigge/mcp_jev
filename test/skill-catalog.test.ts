@@ -72,6 +72,18 @@ test("skill corpus includes every question id and state field from each pack", (
   }
 });
 
+test("SKILL.md routes tree scans to code_audit and documents pr_audit pitfalls", () => {
+  const skill = read("skills/mcp_jev/SKILL.md");
+  assert.match(skill, /pr_audit` is not the only file-list pack/);
+  assert.match(skill, /PR-shaped merge risk only/);
+  assert.match(skill, /experiment narrative/);
+  assert.match(skill, /~40-path/);
+  assert.match(skill, /Path false positives/);
+  assert.match(skill, /does \*\*not\*\* read file bodies/);
+  assert.match(skill, /budget/);
+  assert.match(skill, /[Pp]ath-only test/);
+});
+
 test("README pack table covers the same registry ids", () => {
   const readme = read("README.md");
   assert.match(readme, /## Skill stays in sync/);

@@ -15,7 +15,7 @@ Agent skill: [`../SKILL.md`](../SKILL.md). After `scripts/update.sh`, re-load th
 
 **PR audit.** Typed merge-risk judgment for a pull request. Staged review: risk Nouls (money/hours/boundary/migration) → closed-catalog file Choice from `files[]` in caller code → severity Score `blast_radius` (plus Choice `merge_risk`).
 
-When to use: Before merging or auto-approving a PR when you need calibrated risk signals. Use as a staged review workflow: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Do not use Jev to write the review comment or to compute the final gate.
+When to use: Before merging or auto-approving a PR when you need calibrated risk signals. Use as a staged review workflow: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Only for PR-shaped merge risk (title/body/files/diff_summary/flags) — not a repo-tree, architecture, or 'try Jev on these files' scan (use `code_audit`). Do not use Jev to write the review comment or to compute the final gate.
 
 ### State
 
@@ -63,8 +63,9 @@ Required: `title`, `body`, `files`, `diff_summary`. `additionalProperties: false
 
 ### Suggested workflow
 
-1. Collect title, body, changed paths, and a short diff_summary in code. Do not dump a full mega-diff into state.
-1. Optionally set flags from path heuristics (billing/, migrations/, timesheet/) before the call.
+1. Collect title, body, changed paths, and a short diff_summary in code. Do not dump a full mega-diff into state. Title/body/diff_summary describe the change — never the experiment narrative ('testing Jev', 'dogfood', 'try audit').
+1. Keep files[] to the actual PR set. A ~40-path 'no signal' dump inflates needs_review/block — use a smaller batch or code_audit per-file for tree scans.
+1. Flags: either match paths honestly (billing/ → touches_money, migrations/ → migration, timesheet/ → touches_hours) OR set all flags false to test path-only. Do not mix a test story with honest flags.
 1. Call list_packs / describe_pack once if you have not used pr_audit in this session, then run_pack.
 1. Stage in code: (1) risk Nouls — money, hours, hours_money_boundary, migration; (2) if you need a file-level follow-up, Choice among the closed `files[]` catalog you already passed (this pack does not invent paths); (3) severity via blast_radius.score. Read merge_risk.choice in the same snap.
 1. Compute code_gate in the caller. Jev does not return code_gate and must not be asked for it through this MCP.
@@ -74,6 +75,10 @@ Required: `title`, `body`, `files`, `diff_summary`. `additionalProperties: false
 
 - Staged review is caller-owned: risk Nouls → file Choice over `files[]` → severity Score. This pack already fans out the Nouls, merge_risk, and blast_radius in one systemOne call; compose the file Choice in your code from the same `files[]` list (closed catalog).
 - code_gate is computed by the caller, not Jev. Example: block if merge_risk is block, or money.noul is high, or hours_money_boundary.noul is high, or migration.noul is high with blast_radius.score >= 2. Tune thresholds on your own data.
+- Not a repo-tree pack. `code_audit` is the file-list / architecture scan. This pack requires PR-shaped title/body/files/diff_summary.
+- Never put experiment narrative in title/body. Flags either match paths honestly or are all false for an explicit path-only test — pick one.
+- This pack does not read file bodies. Path tokens (budget, migration, finance, payroll) move money/migration Nouls. For content truth use a real diff_summary or `code_audit` Pass 2 excerpt.
+- Large path-only batches (~40 files) with no real diff inflate merge_risk toward needs_review/block. Prefer the actual PR file set or `code_audit` per-file.
 - Noul answers have no separate confidence field — the probability is the belief.
 - Choice and Score include probabilities plus confidence (how peaked the distribution is).
 
@@ -470,7 +475,7 @@ Required: `diff_summary`, `files`. `additionalProperties: false`.
 
 **Code audit.** Millisecond-tier per-file structured engineering audit: compact signals in, typed Nouls / Scores / primary_concern out. Latency is send/receive RTT per file — parallelize N workers. Pass 1 is signals-only over all files; Pass 2 adds a short excerpt on top-N only.
 
-When to use: When a harness already listed files and computed compact per-file signals and needs typed ratings — not a written review and not a multi-second LLM pass. Default: one run_pack per file with path + signals (no body). Distinct from review_diff (a short diff) and pr_audit (money/hours/migration merge). Compose gates in your code.
+When to use: When a harness already listed files and computed compact per-file signals and needs typed ratings — not a written review and not a multi-second LLM pass. Default: one run_pack per file with path + signals (no body). Prefer this pack when the user asks to try/audit Jev on a repo tree, architecture, or file list — `pr_audit` is not the only files[] pack and is PR-shaped merge risk only. Distinct from review_diff (a short diff) and pr_audit (money/hours/migration merge). Compose gates in your code.
 
 ### State
 
@@ -547,7 +552,7 @@ Required: none at the top level (see pack notes for Mode A / Mode B). `additiona
 - Mode A (preferred): one file per run_pack. Mode B: files[] + batch_notes, Choice hotspot_file. When both path and files exist, single-file Mode A wins.
 - The harness owns excerpt truncation. This pack rejects bodies over the cap. Screenshots, binaries, and generated/vendor dirs stay out.
 - Thresholds live in caller code (gateCodeAudit is an example). Jev does not write a review comment or compute a repo-wide grade.
-- Distinct from review_diff (short diff + files[] hotspot) and pr_audit (money/hours/migration merge).
+- Distinct from review_diff (short diff + files[] hotspot) and pr_audit (money/hours/migration merge). Repo-tree / architecture / 'try Jev on these files' → this pack (Pass 1 signals-first), not pr_audit.
 - Noul answers have no separate confidence field — the probability is the belief. Choice and Score include probabilities plus confidence.
 
 ## `skill_router` 1.0.0

@@ -210,7 +210,7 @@ export const codeAuditPack: PackDefinition = {
   summary:
     "Millisecond-tier per-file structured engineering audit: compact signals in, typed Nouls / Scores / primary_concern out. Latency is send/receive RTT per file — parallelize N workers. Pass 1 is signals-only over all files; Pass 2 adds a short excerpt on top-N only.",
   when_to_use:
-    "When a harness already listed files and computed compact per-file signals and needs typed ratings — not a written review and not a multi-second LLM pass. Default: one run_pack per file with path + signals (no body). Distinct from review_diff (a short diff) and pr_audit (money/hours/migration merge). Compose gates in your code.",
+    "When a harness already listed files and computed compact per-file signals and needs typed ratings — not a written review and not a multi-second LLM pass. Default: one run_pack per file with path + signals (no body). Prefer this pack when the user asks to try/audit Jev on a repo tree, architecture, or file list — `pr_audit` is not the only files[] pack and is PR-shaped merge risk only. Distinct from review_diff (a short diff) and pr_audit (money/hours/migration merge). Compose gates in your code.",
   state_schema: {
     type: "object",
     additionalProperties: false,
@@ -317,7 +317,7 @@ export const codeAuditPack: PackDefinition = {
     "Mode A (preferred): one file per run_pack. Mode B: files[] + batch_notes, Choice hotspot_file. When both path and files exist, single-file Mode A wins.",
     "The harness owns excerpt truncation. This pack rejects bodies over the cap. Screenshots, binaries, and generated/vendor dirs stay out.",
     "Thresholds live in caller code (gateCodeAudit is an example). Jev does not write a review comment or compute a repo-wide grade.",
-    "Distinct from review_diff (short diff + files[] hotspot) and pr_audit (money/hours/migration merge).",
+    "Distinct from review_diff (short diff + files[] hotspot) and pr_audit (money/hours/migration merge). Repo-tree / architecture / 'try Jev on these files' → this pack (Pass 1 signals-first), not pr_audit.",
     "Noul answers have no separate confidence field — the probability is the belief. Choice and Score include probabilities plus confidence.",
   ],
 };

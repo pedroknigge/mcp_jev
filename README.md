@@ -183,8 +183,8 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Skill select from a closed list | `skill_router` |
 | Command risk signals | `command_risk` |
 | Generic diff review | `review_diff` |
-| Per-file / full-repo structured audit | `code_audit` |
-| Money / hours / migration merge risk | `pr_audit` |
+| Repo tree / architecture / "try Jev on these files" | `code_audit` (Pass 1; not `pr_audit`) |
+| Money / hours / migration **PR-shaped** merge risk | `pr_audit` |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
 
@@ -202,7 +202,7 @@ Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap` → Cho
 
 Example thresholds: request review if any Noul ≥ 0.65; block if `security.noul ≥ 0.75` or `severity.score ≥ 2.5`.
 
-`pr_audit` remains the money / hours / migration merge pack. Distinct id. Do not rename.
+`pr_audit` remains the money / hours / migration merge pack — **PR-shaped state only** (`title` / `body` / `files` / `diff_summary`). Distinct id. Do not rename. Do not use it for a repo-tree scan (`code_audit`). Never put experiment narrative in `title`/`body`. Large path-only batches (~40 files) inflate `needs_review`/`block`; path tokens (`budget`, `migration`, `finance`) move Nouls without reading bodies.
 
 ### `code_audit` (full-repo / per-file scan)
 
