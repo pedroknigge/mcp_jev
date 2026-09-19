@@ -8,7 +8,7 @@ Anyone runs it **on their own PC** with **their own** TypeSafe API key. This rep
 
 **Docs (source of truth):** this repo — [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) · TypeSafe API: [docs.typesafe.ai](https://docs.typesafe.ai) · [llms.txt](https://docs.typesafe.ai/llms.txt)
 
-Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md)
+Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · Releases: [docs/RELEASES.md](docs/RELEASES.md)
 
 - [Why mcp_jev](#why-mcp_jev)
 - [Install (happy path)](#install-happy-path)
@@ -110,7 +110,7 @@ Later: `node ~/mcp_jev/dist/index.js config set-key`
 | **Install script (prefer this)** | Humans and agents. Key once, keyless host config. |
 | Git clone + manual build | `npm install && npm run build && npm test` in `REPO_PATH`. Then `node dist/index.js config set-key`. |
 | `npx -y github:pedroknigge/mcp_jev` | No clone. Slow first start. Still run `config set-key` so hosts stay keyless. |
-| `npx -y mcp_jev` | Published bin (`mcp_jev` → `dist/index.js`): no-args = stdio MCP; `help` / `doctor` / `scan` / `smoke` = CLI. First publish is a maintainer step — [docs/PUBLISH.md](docs/PUBLISH.md). Until then this 404s; use the install script or `npx -y github:pedroknigge/mcp_jev`. |
+| npm registry (`npx mcp_jev`) | **Not used.** This project is not published to npm. Install from GitHub; update with `scripts/update.sh`. See [docs/RELEASES.md](docs/RELEASES.md). |
 
 `npm test` mocks TypeSafe and must pass without a live key.
 
@@ -299,10 +299,14 @@ Example gate (`src/policy-examples.ts` `gateI18nCopy`): `ok` | `glance` | `block
 
 ## Update
 
+Update from the **GitHub checkout**, not npm:
+
 ```bash
 ~/mcp_jev/scripts/update.sh          # git pull + npm install + build; keeps ~/.mcp_jev/.env
 # Windows: ~\mcp_jev\scripts\update.ps1
 ```
+
+Do not `npm update -g mcp_jev` or `npx mcp_jev@latest`. Public versions are GitHub Releases (`v0.0.9` onward). Scheme: [docs/RELEASES.md](docs/RELEASES.md).
 
 Restart the MCP host. Then **reload the skill** (hosts do not auto-reload it):
 
@@ -493,7 +497,7 @@ CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev ho
 | `unknown_pack` | `list_packs`. There is no `ask_jev`. |
 | Wrong Node | `node -v` must be 20+. GUI hosts may not see nvm. |
 | stdio pollution | Wrapper and server must not write to **stdout**. |
-| `npx mcp_jev` 404 | First npm publish not done yet (maintainer). Use the install script or `npx -y github:pedroknigge/mcp_jev`. After publish: `npx -y mcp_jev` is the bin. See [docs/PUBLISH.md](docs/PUBLISH.md). |
+| `npx mcp_jev` 404 | Expected. mcp_jev is not on npm. Clone GitHub and run `scripts/install.sh`; later `scripts/update.sh`. See [docs/RELEASES.md](docs/RELEASES.md). |
 
 ## Scripts
 

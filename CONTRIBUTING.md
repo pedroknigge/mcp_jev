@@ -60,4 +60,4 @@ Keep diffs surgical. `npm test` and `npm run build` must pass. Say what you veri
 
 ## Publishing
 
-Do **not** `npm publish` from a PR. Maintainer checklist (version bump, `npm login`, `npm publish`, git tag `v*`, GitHub Release, required `NPM_TOKEN` secret): [docs/PUBLISH.md](docs/PUBLISH.md).
+Do **not** `npm publish`. Public versions are GitHub Releases only (start `0.0.9`, bump one path, roll at 99): [docs/RELEASES.md](docs/RELEASES.md).

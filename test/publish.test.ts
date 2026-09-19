@@ -33,7 +33,10 @@ test("package.json is publish-ready: name, bin, files, engines, repo metadata", 
   assert.equal(pkg.publishConfig.access, "public");
   assert.ok(fs.existsSync(path.join(root, ".npmignore")));
   assert.ok(fs.existsSync(path.join(root, "docs", "PUBLISH.md")));
+  assert.ok(fs.existsSync(path.join(root, "docs", "RELEASES.md")));
   assert.ok(fs.existsSync(path.join(root, ".github", "workflows", "release.yml")));
+  const releaseYml = fs.readFileSync(path.join(root, ".github", "workflows", "release.yml"), "utf8");
+  assert.ok(!releaseYml.includes("npm publish"));
 });
 
 test("npm pack allowlist includes dist and skills, excludes src and test", () => {

@@ -159,7 +159,7 @@ if ($env:MCP_JEV_SYNC_SKILL -eq "1") {
 
 Write-Host ""
 Write-Host "Then: mcp_jev doctor → restart the MCP host → ping → list_packs"
-Write-Host "Update later:  $repoHome\scripts\update.ps1"
+Write-Host "Update later (GitHub checkout, not npm):  $repoHome\scripts\update.ps1"
 Write-Host ""
 Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 Write-Host "SKILL REFRESH — hosts do not auto-reload skills after pull."

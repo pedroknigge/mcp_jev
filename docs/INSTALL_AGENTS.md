@@ -27,7 +27,7 @@ The script stores `TYPESAFE_API_KEY` **once** in `~/.mcp_jev/.env` (chmod 600). 
 
 `MCP_JEV_HOME` (default `~/.mcp_jev`) is the **user config dir** (key + wrapper). Checkout defaults to `~/mcp_jev`, or the repo you ran the script from (`cd $HOME/mcp_jev && ./scripts/install.sh`). Optional `MCP_JEV_CHECKOUT` overrides the clone path. `MCP_JEV_CONFIG` is an alias for `MCP_JEV_HOME`.
 
-Update: `~/mcp_jev/scripts/update.sh` — pull + build; **does not** touch the key. Restart the host. Then reload the skill (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).
+Update from GitHub (not npm): `~/mcp_jev/scripts/update.sh` — pull + build; **does not** touch the key. Restart the host. Then reload the skill (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`). Versioning: [RELEASES.md](RELEASES.md).
 
 This package is **stdio only**. Do not pick HTTP/SSE/URL in host UIs.
 
@@ -38,7 +38,7 @@ This package is **stdio only**. Do not pick HTTP/SSE/URL in host UIs.
 | Script | Prefer this. |
 | Manual clone | `npm install && npm run build && npm test` then `node dist/index.js config set-key` |
 | `npx -y github:pedroknigge/mcp_jev` | No clone; still `config set-key` so hosts stay keyless |
-| `npx -y mcp_jev` | Published bin (`dist/index.js`). First publish is a maintainer step — [PUBLISH.md](PUBLISH.md). Until then this 404s. |
+| npm registry (`npx mcp_jev`) | **Not used.** Not published to npm. Use `scripts/update.sh` from the GitHub checkout. |
 
 ## Cursor
 
