@@ -25,7 +25,7 @@
 
 Each question: `{ id, type, instructions, criteria }`. `id` is a snake_case key for code. Put complete meaning in `instructions`; backtick paths into state.
 
-**Aliases (dogfood):** Score may send `levels` instead of `criteria`; Choice may send `options`. mcp_jev maps those onto `criteria` when `criteria` is absent. Prefer `criteria` in new recipes — do not invent `legend` on input (that is an answer field).
+**Aliases (dogfood):** Agents may send `prompt` instead of `instructions`; Score may send `levels` instead of `criteria`; Choice may send `options`. mcp_jev maps those onto the canonical fields when the canonical is absent. Prefer `instructions` / `criteria` in new recipes — do not invent `legend` on input (that is an answer field).
 
 Optional `model` overrides `JEV_MODEL` / `jev-latest`. Requires `TYPESAFE_API_KEY` the same way `run_pack` does.
 

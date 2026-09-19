@@ -166,6 +166,72 @@ test("parseCustomRunInput accepts score levels and choice options aliases", () =
   );
 });
 
+test("parseCustomRunInput accepts prompt → instructions alias", () => {
+  const viaPrompt = parseCustomRunInput({
+    state: { command: "git push --force origin main" },
+    questions: [
+      {
+        id: "requires_human_gate",
+        type: "noul",
+        prompt: "Does this command require an explicit human gate before any agent may run it?",
+      },
+      {
+        id: "blast",
+        type: "score",
+        prompt: "Blast radius if the command runs successfully.",
+        levels: ["noop", "local_only", "shared_remote", "prod_irreversible"],
+      },
+      {
+        id: "gate",
+        type: "choice",
+        prompt: "What should the harness do next?",
+        options: {
+          ask_user: "Pause and ask the user to approve",
+          block: "Hard-block; do not run",
+        },
+      },
+    ],
+  });
+  const noul = viaPrompt.questions.find((q) => q.id === "requires_human_gate") as {
+    instructions: string;
+  };
+  assert.equal(
+    noul.instructions,
+    "Does this command require an explicit human gate before any agent may run it?",
+  );
+  assert.deepEqual(
+    (viaPrompt.questions.find((q) => q.id === "blast") as { criteria: string[] }).criteria,
+    ["noop", "local_only", "shared_remote", "prod_irreversible"],
+  );
+  assert.deepEqual(
+    Object.keys(
+      (viaPrompt.questions.find((q) => q.id === "gate") as { criteria: Record<string, string> }).criteria,
+    ).sort(),
+    ["ask_user", "block"],
+  );
+});
+
+test("parseCustomRunInput rejects conflicting instructions and prompt", () => {
+  assert.throws(
+    () =>
+      parseCustomRunInput({
+        state: { x: 1 },
+        questions: [
+          {
+            id: "gate",
+            type: "noul",
+            instructions: "Canonical",
+            prompt: "Alias differs",
+          },
+        ],
+      }),
+    (err: unknown) =>
+      err instanceof ToolError &&
+      err.code === "invalid_questions" &&
+      /both instructions and prompt/.test(err.message),
+  );
+});
+
 test("parseCustomRunInput rejects conflicting criteria and levels", () => {
   assert.throws(
     () =>
