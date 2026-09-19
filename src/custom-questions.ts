@@ -100,9 +100,18 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
     return `${prefix} must be an object with id, type, instructions, and type-specific criteria`;
   }
 
+  // Agent dogfood: Score often arrives as `levels` instead of `criteria`; Choice as `options`.
+  // Normalize only when `criteria` is absent.
+  const normalized = normalizeQuestionAliases(raw, prefix);
+  if (typeof normalized === "string") {
+    return normalized;
+  }
+  raw = normalized;
+
   const extras = Object.keys(raw).filter((key) => !QUESTION_KEYS.has(key));
   if (extras.length > 0) {
-    return `${prefix} has unknown field(s): ${extras.join(", ")}`;
+    const hint = aliasHint(extras, raw.type);
+    return `${prefix} has unknown field(s): ${extras.join(", ")}${hint}`;
   }
 
   const id = raw.id;
@@ -147,6 +156,53 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): PackQues
     return criteria;
   }
   return { id, type: "score", instructions: instructions.trim(), criteria };
+}
+
+/** Common agent typos → canonical `criteria`. Fail closed if both are set and differ. */
+function normalizeQuestionAliases(
+  raw: Record<string, unknown>,
+  prefix: string,
+): Record<string, unknown> | string {
+  const type = raw.type;
+  const out: Record<string, unknown> = { ...raw };
+
+  if (type === "score" && "levels" in out) {
+    if (out.criteria === undefined) {
+      out.criteria = out.levels;
+      delete out.levels;
+    } else if (JSON.stringify(out.criteria) === JSON.stringify(out.levels)) {
+      delete out.levels;
+    } else {
+      return `${prefix} has both criteria and levels; use criteria (ordered string[]) only`;
+    }
+  }
+
+  if (type === "choice" && "options" in out) {
+    if (out.criteria === undefined) {
+      out.criteria = out.options;
+      delete out.options;
+    } else if (JSON.stringify(out.criteria) === JSON.stringify(out.options)) {
+      delete out.options;
+    } else {
+      return `${prefix} has both criteria and options; use criteria (closed Record) only`;
+    }
+  }
+
+  return out;
+}
+
+function aliasHint(extras: string[], type: unknown): string {
+  const bits: string[] = [];
+  if (extras.includes("levels")) {
+    bits.push("for score use criteria: string[] (not levels)");
+  }
+  if (extras.includes("options")) {
+    bits.push("for choice use criteria: Record (not options)");
+  }
+  if (extras.includes("legend") && type === "score") {
+    bits.push("legend is an answer field, not an input — put ordered labels in criteria");
+  }
+  return bits.length > 0 ? `. Hint: ${bits.join("; ")}` : "";
 }
 
 function parseChoiceCriteria(value: unknown, prefix: string): Record<string, string> | string {
