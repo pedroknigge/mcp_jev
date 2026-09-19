@@ -5,6 +5,7 @@ Model-universal skill for **mcp_jev** (TypeSafe Jev / System One packs).
 - Latest install: [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev)
 - This folder: [`SKILL.md`](./SKILL.md) · [`references/install.md`](./references/install.md) · [`references/pack-catalog.md`](./references/pack-catalog.md)
 - Custom judgments (packs are shortcuts; no pack fits → typed `run_questions`): [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md)
+- Blind dogfood (invent questions before the pack list): [`docs/DOGFOOD.md`](../../docs/DOGFOOD.md)
 
 ## Install the skill
 

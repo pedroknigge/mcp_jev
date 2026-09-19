@@ -22,6 +22,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "smoke:packs": "node --import tsx scripts/smoke-all-packs.mjs",
+    "smoke:blind-i18n": "node --import tsx scripts/blind-i18n-example.mjs",
     "sync-skill-catalog": "tsx scripts/sync-skill-catalog.ts",
     "prepare": "npm run build",
     "prepublishOnly": "npm run typecheck && npm run build && npm test"
