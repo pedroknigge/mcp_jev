@@ -8,13 +8,14 @@ Anyone runs it **on their own PC** with **their own** TypeSafe API key. This rep
 
 **Docs (source of truth):** this repo — [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) · TypeSafe API: [docs.typesafe.ai](https://docs.typesafe.ai) · [llms.txt](https://docs.typesafe.ai/llms.txt)
 
-Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Custom judgments: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md) · Product backlog: [docs/BACKLOG.md](docs/BACKLOG.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · Releases: [docs/RELEASES.md](docs/RELEASES.md)
+Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Custom judgments: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md) · Blind dogfood: [docs/DOGFOOD.md](docs/DOGFOOD.md) · Product backlog: [docs/BACKLOG.md](docs/BACKLOG.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · Releases: [docs/RELEASES.md](docs/RELEASES.md)
 
 - [Why mcp_jev](#why-mcp_jev)
 - [Install (happy path)](#install-happy-path)
 - [First-run](#first-run)
 - [Verify](#verify)
 - [Recipes](#recipes)
+- [Blind-test protocol](#blind-test-protocol)
 - [Update](#update)
 - [Skill stays in sync](#skill-stays-in-sync)
 - [Say this to your agent](#say-this-to-your-agent)
@@ -145,20 +146,100 @@ Default `smoke:packs` injects the same mocked `systemOne` pattern as `npm test` 
 
 ## Recipes
 
-### `run_questions` (no pack fits)
+### `run_questions` (first-class; no exact pack)
 
-**Packs are shortcuts.** `list_packs` first. If an id fits, `describe_pack` + `run_pack` (for example hardcoded UI copy → **`i18n_copy`**). If **no pack fits**, do **not** stop: build a closed state object and typed Choice / Noul / Score questions, then call **`run_questions`**. Same `systemOne` path as `run_pack`. Not “write me a review”. After a pattern repeats 2–3 times, upstream a named pack.
+**Packs are shortcuts.** Same `systemOne` path as `run_pack`. Not “write me a review”. After a pattern repeats 2–3 times, upstream a named pack.
+
+Blind dogfood: invent typed questions **before** opening the pack list; use a pack only if it matches exactly — [docs/DOGFOOD.md](docs/DOGFOOD.md).
 
 Example (public-API / changelog break — no pack): state `{ path, change_summary, symbols:[{id,kind,note}] }` + Noul `is_breaking_for_callers` + Score `doc_debt` + Choice `hottest_symbol` over symbol ids plus `none`. Full recipe: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md).
+
+#### i18n via `run_questions` (equal to `run_pack` `i18n_copy`)
+
+Closed `candidates[]`, same Login / Submit / Error loading demo as the pack. Extra Noul `needs_locale_split` means **`i18n_copy` is not an exact match** — stay on `run_questions`. Runnable: `npm run smoke:blind-i18n` (mocked) or `--live`.
+
+```json
+{
+  "state": {
+    "path": "src/components/LoginForm.tsx",
+    "language": "tsx",
+    "framework_i18n": "next-intl",
+    "uses_i18n_api": false,
+    "locale_files_present": true,
+    "candidates": [
+      { "id": "login_heading", "text": "Login", "kind": "jsx_text", "line": 12 },
+      { "id": "submit_btn", "text": "Submit", "kind": "jsx_attr", "line": 40 },
+      { "id": "load_error", "text": "Error loading", "kind": "toast", "line": 55 }
+    ]
+  },
+  "questions": [
+    {
+      "id": "has_user_facing_hardcoded_copy",
+      "type": "noul",
+      "instructions": "Given `path`, `candidates`, and `uses_i18n_api`, does this file contain user-facing hardcoded copy that is not already going through an i18n API?",
+      "criteria": {
+        "true": "At least one candidate is user-visible copy that would ship in one language.",
+        "false": "Candidates are identifiers, logs, tests, or already passed through t() / useTranslations."
+      }
+    },
+    {
+      "id": "should_migrate_to_i18n",
+      "type": "noul",
+      "instructions": "Should the caller extract the user-facing strings in `candidates` into the project's i18n layer before a multi-locale ship?",
+      "criteria": {
+        "true": "Hardcoded user-facing copy should move to locale files / t() before shipping more locales.",
+        "false": "No migration needed: already i18n, copy is dev-only, or a multi-locale ship is not indicated."
+      }
+    },
+    {
+      "id": "i18n_debt",
+      "type": "score",
+      "instructions": "How much i18n debt does this file add to a multi-locale ship, given `candidates` and `uses_i18n_api`?",
+      "criteria": [
+        "Clean: no user-facing hardcoded copy.",
+        "Local leftover: a few strings, easy extract.",
+        "Cross-cutting: many strings or mixed buckets; needs a focused pass.",
+        "Blocking for a multi-locale ship: user-facing copy would ship untranslated."
+      ]
+    },
+    {
+      "id": "hottest_candidate",
+      "type": "choice",
+      "instructions": "Which `candidates[].id` is the hottest string to extract first? Options are only those ids plus `none`.",
+      "criteria": {
+        "login_heading": "kind=jsx_text; text=Login; line=12",
+        "submit_btn": "kind=jsx_attr; text=Submit; line=40",
+        "load_error": "kind=toast; text=Error loading; line=55",
+        "none": "No single candidate stands out to extract first."
+      }
+    },
+    {
+      "id": "needs_locale_split",
+      "type": "noul",
+      "instructions": "Should labels and toasts in `candidates` land in different locale namespaces (UI strings vs errors) rather than one dump?",
+      "criteria": {
+        "true": "UI labels and error/toast copy should split across locale files or namespaces.",
+        "false": "One locale namespace is enough, or there is no user-facing copy."
+      }
+    }
+  ]
+}
+```
+
+### Blind-test protocol
+
+1. Invent typed Choice / Noul / Score questions **before** opening `list_packs`.
+2. Use a pack only if it matches **exactly**.
+3. Otherwise `run_questions`. Full protocol: [docs/DOGFOOD.md](docs/DOGFOOD.md).
 
 ### `computer_use_step` (harness)
 
 Code owns OCR / accessibility / DOM, clicks, and the **writer LLM** for free text. Jev only picks the next operation and a target from your closed catalogs.
 
-1. Observe in the harness. Build `items[]` (and optional `offscreen_items[]`) with stable ids. Short `observation_summary`. **No screenshots, pixels, or image blobs in state** (rejected as `invalid_state`).
+1. Observe in the harness. Build `items[]` (and optional `offscreen_items[]`) with stable ids. Cap the catalog **before 255** (Choice cap includes `none`). Prefer `source: "dom"` when ids are DOM-closed; `ax` / `ocr` when that is what you observed. Short `observation_summary`. **No screenshots, pixels, or image blobs in state** (rejected as `invalid_state`).
 2. `run_pack` `computer_use_step` with `goal`, `app_or_url`, that observation, recent `history`, and `flags`.
 3. One `systemOne` call fans out `operation` plus a separate target Choice per op (`click_target`, `type_target`, `offscreen_target`) plus `goal_achieved`, `observation_stale`, `step_confidence`. Each target question assumes its operation.
-4. Prefer additive **`guidance`**: `target_for`, `ignore_targets`, `effective_targets`, `writer_owns_typed_string`, `harness_hints`. Raw `answers` stay intact. Use only the target head for the selected operation.
+4. Prefer additive **`guidance`**: `target_for`, `ignore_targets`, `effective_targets`, `writer_owns_typed_string`, `harness_hints`. Raw `answers` stay intact. Act only on `guidance.effective_targets` / `guidance.target_for[operation]`.
 5. For `type_text` / `type_email`, a writer LLM (or stored value) supplies the string. `max_steps` / `max_candidates` stay in the harness.
 6. Example thresholds (tune on your traces): stop if `goal_achieved.noul ≥ 0.8` or `operation` is `done`; re-observe if `observation_stale.noul ≥ 0.65` or `step_confidence.score < 1.5`.
 
@@ -182,6 +263,8 @@ Example state:
 
 ### `model_router` (per-turn lane)
 
+Call at **turn start**, before tools. Map `route.choice` in **code** (unit-test the mapper; no TypeSafe key). Do not invent a sixth lane.
+
 Closed lanes: `fast_local` | `strong_reasoner` | `tools_heavy` | `ask_user` | `skip`.
 
 | Lane | Meaning |
@@ -198,6 +281,7 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 
 | Need | Pack |
 | --- | --- |
+| Typed Choice / Noul / Score with **no exact pack** (incl. i18n + extra heads) | **`run_questions`** (not a pack) |
 | Next GUI step from a closed element catalog | `computer_use_step` |
 | Model cascade / per-turn compute lane | `model_router` |
 | Skill select from a closed list | `skill_router` |
@@ -208,7 +292,7 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Item / SKU locale from a **caller-supplied** closed country list | `locale_country` |
 | Claimed behavior vs named tests / CI | `verify_gap` |
 | One module’s imports/exports vs layer | `boundary_check` |
-| Hardcoded UI copy vs i18n (`t()` / locale files) | `i18n_copy` |
+| Hardcoded UI copy vs i18n (`t()` / locale files) | `i18n_copy` if exact match; else **`run_questions`** (i18n recipe above) |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
 
@@ -282,7 +366,7 @@ Optional Mode B: one call with `files[]` (paths only) + short `batch_notes` — 
 
 ### `i18n_copy` (hardcoded UI copy)
 
-**Shortcut pack.** Do not rebuild this as `run_questions`. Per-file audit of hardcoded strings that should live in an i18n layer. The harness extracts a **closed** `candidates[]` catalog (max ~20). Jev does not rewrite JSX or locale JSON.
+**Shortcut pack** when invented heads match **exactly** (the three Nouls + `i18n_debt` + `hottest_candidate` + `primary_bucket`). Extra head such as `needs_locale_split` → **`run_questions`** (recipe above, equal JSON). Per-file audit of hardcoded strings that should live in an i18n layer. The harness extracts a **closed** `candidates[]` catalog (max ~20). Jev does not rewrite JSX or locale JSON.
 
 Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized` → Score `i18n_debt` (0 clean → 3 blocking for a multi-locale ship) → Choice `hottest_candidate` from `candidates[].id` plus `none` → Choice `primary_bucket` (`ui_copy` | `error_message` | `marketing` | `dev_only` | `mixed` | `none`).
 
@@ -514,6 +598,7 @@ CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev ho
 ./scripts/update.sh
 ./scripts/verify-mcp.sh  # stdio smoke, no TypeSafe call
 npm run smoke:packs      # mocked run_pack for every pack
+npm run smoke:blind-i18n # mocked run_questions-shaped i18n (closed candidates)
 npm run build            # tsc → dist/
 npm start                # node dist/index.js (MCP stdio)
 npm test

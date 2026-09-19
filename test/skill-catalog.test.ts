@@ -135,6 +135,13 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(skill, /hottest_symbol/);
   assert.match(skill, /CUSTOM_JUDGMENTS\.md/);
   assert.match(skill, /Shortcut pack/);
+  assert.match(skill, /## Blind-test protocol/);
+  assert.match(skill, /invent typed Choice \/ Noul \/ Score questions \*\*before\*\*/i);
+  assert.match(skill, /i18n via `run_questions`/);
+  assert.match(skill, /needs_locale_split/);
+  assert.match(skill, /DOGFOOD\.md/);
+  assert.match(skill, /before 255/);
+  assert.match(skill, /turn start/);
   assert.doesNotMatch(skill, /Four tools\. No others/);
   assert.doesNotMatch(skill, /say this server cannot do that/);
   assert.doesNotMatch(
@@ -145,9 +152,15 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(readme, /run_questions/);
   assert.match(readme, /[Pp]acks are shortcuts/);
   assert.match(readme, /is_breaking_for_callers/);
+  assert.match(readme, /i18n via `run_questions`/);
+  assert.match(readme, /needs_locale_split/);
+  assert.match(readme, /DOGFOOD\.md/);
+  assert.match(readme, /before 255/);
+  assert.match(readme, /turn start/);
   assert.match(contributing, /`run_questions`/);
   assert.match(contributing, /typed escape hatch/);
   assert.match(contributing, /[Pp]acks are shortcuts/);
+  assert.match(contributing, /DOGFOOD\.md/);
   assert.doesNotMatch(contributing, /A tool that accepts arbitrary TypeSafe questions/);
 
   assert.match(custom, /run_questions/);
@@ -158,5 +171,24 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(custom, /i18n_copy/);
   assert.match(custom, /list_packs/);
   assert.match(custom, /write me a review/i);
+  assert.match(custom, /## Recipe: i18n via `run_questions`/);
+  assert.match(custom, /needs_locale_split/);
+  assert.match(custom, /DOGFOOD\.md/);
   assert.doesNotMatch(custom, /## Example: i18n hardcoded copy/);
+});
+
+test("DOGFOOD.md teaches invent-before-list_packs and equal i18n recipes", () => {
+  const dogfood = read("docs/DOGFOOD.md");
+  assert.match(dogfood, /Blind-test protocol/);
+  assert.match(dogfood, /Invent typed questions first/);
+  assert.match(dogfood, /before/i);
+  assert.match(dogfood, /list_packs/);
+  assert.match(dogfood, /matches exactly/);
+  assert.match(dogfood, /run_questions/);
+  assert.match(dogfood, /needs_locale_split/);
+  assert.match(dogfood, /computer_use_step/);
+  assert.match(dogfood, /model_router/);
+  assert.match(dogfood, /effective_targets/);
+  assert.match(dogfood, /turn start/);
+  assert.match(dogfood, /blind-i18n-example/);
 });

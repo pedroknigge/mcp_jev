@@ -121,7 +121,7 @@ P0/P1 rows have GitHub issues labeled `backlog` / `harness` / `research`. Number
 
 **State sketch.** Per recipe: a closed object (catalog ids, not a repo dump) + 1–3 questions. Examples to cover: GUI next-op, voice intent, Android catalog, model lane, tool-risk Noul, passage Choice (`L000`…), dry-run trade, burst of inbox Nouls.
 
-**Success metric.** `skills/mcp_jev/SKILL.md` (or a `references/` page) has one pasteable JSON body per Now/Next inspiration. `npm test` still fails if skill/catalog drift. Agents can run a novel judgment without a new pack id.
+**Success metric.** `skills/mcp_jev/SKILL.md` (or a `references/` page) has one pasteable JSON body per Now/Next inspiration. `npm test` still fails if skill/catalog drift. Agents can run a novel judgment without a new pack id. Blind protocol + first-class i18n `run_questions` recipe: [DOGFOOD.md](DOGFOOD.md).
 
 **Inspiration.** This repo’s custom path + the Now/Next inspiration list. Cookbook pattern: [Anil-matcha/awesome-jev-by-typesafe](https://github.com/Anil-matcha/awesome-jev-by-typesafe).
 

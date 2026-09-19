@@ -1,17 +1,17 @@
 # Custom judgments (`run_questions`)
 
-**Packs are shortcuts.** Load this only when **no pack fits**.
+**Packs are shortcuts.** Same System One path as `run_pack`: caller-built **state** + typed **Choice / Noul / Score** questions. No side effects. This is **not** chat and **not** essay generation.
 
-This is **not** chat and **not** essay generation. Same System One path as `run_pack`: caller-built **state** + typed **Choice / Noul / Score** questions. No side effects.
+`run_questions` is first-class. Use a pack only when it matches the questions you already invented. Blind dogfood: invent first, then open the pack list — [DOGFOOD.md](DOGFOOD.md).
 
-Hardcoded UI copy is already a shortcut: use **`i18n_copy`** (`run_pack`), not this tool. That pack is what happens when a custom pattern repeats and gets upstreamed.
+`i18n_copy` is the shortcut **after** that exact pattern repeated. If you invented extra heads (recipe below: `needs_locale_split`) or a different catalog, stay on this tool.
 
 ## Workflow
 
-1. `list_packs`. If an id fits → `describe_pack` + `run_pack` (the shortcut).
-2. If **no pack fits**: do **not** stop. Do **not** invent `ask_jev`.
-3. Build a **closed, small** state object (named evidence — not a repo dump).
-4. Ask only typed questions. Call **`run_questions`**.
+1. **Blind / first-class:** invent closed state + typed questions **before** opening `list_packs`.
+2. Then `list_packs`. If an id matches **exactly** → `describe_pack` + `run_pack` (the shortcut).
+3. If **no pack fits** (or it is only nearby): do **not** stop. Do **not** invent `ask_jev`.
+4. Call **`run_questions`**.
 5. Compose gates in **your** code.
 6. After the same custom pattern repeats 2–3 times, upstream a named pack (`CONTRIBUTING.md`).
 
@@ -82,11 +82,90 @@ State is one file, a short change summary, and a closed symbol list you already 
 
 Then write the changelog or skip **in your code**. Jev does not edit files.
 
+## Recipe: i18n via `run_questions`
+
+Equal prominence to `run_pack` `i18n_copy`. Harness extracts a **closed** `candidates[]` catalog. Jev does not rewrite JSX or locale JSON.
+
+Invented heads here are **not** an exact `i18n_copy` match (extra Noul `needs_locale_split`; no `already_partially_internationalized` / `primary_bucket`). Blind protocol → **`run_questions`**. If you later invent exactly the pack heads, use the shortcut.
+
+Runnable: `node --import tsx scripts/blind-i18n-example.mjs` (mocked in CI; `--live` optional).
+
+```json
+{
+  "state": {
+    "path": "src/components/LoginForm.tsx",
+    "language": "tsx",
+    "framework_i18n": "next-intl",
+    "uses_i18n_api": false,
+    "locale_files_present": true,
+    "candidates": [
+      { "id": "login_heading", "text": "Login", "kind": "jsx_text", "line": 12 },
+      { "id": "submit_btn", "text": "Submit", "kind": "jsx_attr", "line": 40 },
+      { "id": "load_error", "text": "Error loading", "kind": "toast", "line": 55 }
+    ]
+  },
+  "questions": [
+    {
+      "id": "has_user_facing_hardcoded_copy",
+      "type": "noul",
+      "instructions": "Given `path`, `candidates`, and `uses_i18n_api`, does this file contain user-facing hardcoded copy that is not already going through an i18n API?",
+      "criteria": {
+        "true": "At least one candidate is user-visible copy that would ship in one language.",
+        "false": "Candidates are identifiers, logs, tests, or already passed through t() / useTranslations."
+      }
+    },
+    {
+      "id": "should_migrate_to_i18n",
+      "type": "noul",
+      "instructions": "Should the caller extract the user-facing strings in `candidates` into the project's i18n layer before a multi-locale ship?",
+      "criteria": {
+        "true": "Hardcoded user-facing copy should move to locale files / t() before shipping more locales.",
+        "false": "No migration needed: already i18n, copy is dev-only, or a multi-locale ship is not indicated."
+      }
+    },
+    {
+      "id": "i18n_debt",
+      "type": "score",
+      "instructions": "How much i18n debt does this file add to a multi-locale ship, given `candidates` and `uses_i18n_api`?",
+      "criteria": [
+        "Clean: no user-facing hardcoded copy.",
+        "Local leftover: a few strings, easy extract.",
+        "Cross-cutting: many strings or mixed buckets; needs a focused pass.",
+        "Blocking for a multi-locale ship: user-facing copy would ship untranslated."
+      ]
+    },
+    {
+      "id": "hottest_candidate",
+      "type": "choice",
+      "instructions": "Which `candidates[].id` is the hottest string to extract first? Options are only those ids plus `none`.",
+      "criteria": {
+        "login_heading": "kind=jsx_text; text=Login; line=12",
+        "submit_btn": "kind=jsx_attr; text=Submit; line=40",
+        "load_error": "kind=toast; text=Error loading; line=55",
+        "none": "No single candidate stands out to extract first."
+      }
+    },
+    {
+      "id": "needs_locale_split",
+      "type": "noul",
+      "instructions": "Should labels and toasts in `candidates` land in different locale namespaces (UI strings vs errors) rather than one dump?",
+      "criteria": {
+        "true": "UI labels and error/toast copy should split across locale files or namespaces.",
+        "false": "One locale namespace is enough, or there is no user-facing copy."
+      }
+    }
+  ]
+}
+```
+
+Then extract or split **in your code**. Example gate for the shared Nouls/Score: `gateI18nCopy` in `src/policy-examples.ts`.
+
 ## Anti-patterns
 
 - Free-form “write me a review”
 - Open-ended options (“anything else”, empty Choice maps, one option)
 - Dumping the whole repo (or a tree of file bodies) into `state`
 - Stopping because `list_packs` had no match
-- Calling `run_questions` when a pack shortcut already exists (`i18n_copy`, `review_diff`, `verify_gap`, …)
+- Stretching a nearby pack when invented questions do not match exactly (`i18n_copy` is a shortcut only for its exact heads)
+- Opening the pack list before inventing questions on a **blind** dogfood
 - Calling TypeSafe when `ping.api_key_set` is false

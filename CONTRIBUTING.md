@@ -54,7 +54,7 @@ Add a registry or handler test if the pack has a special contract (for example: 
 - Same `systemOne` path and API-key rule as `run_pack`
 - No side effects, no free-form prompt, no essay
 
-Agents should `list_packs` first. If none fits, they build closed state + typed questions (see [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md)). After a custom pattern repeats 2–3 times, add a named pack instead of leaving callers on the escape hatch — that is how `i18n_copy` landed.
+Agents should `list_packs` first. If none fits, they build closed state + typed questions (see [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md)). After a custom pattern repeats 2–3 times, add a named pack instead of leaving callers on the escape hatch — that is how `i18n_copy` landed. Blind dogfood inverts the order (invent questions **before** the pack list; pack only on exact match): [docs/DOGFOOD.md](docs/DOGFOOD.md).
 
 ## What not to add
 
