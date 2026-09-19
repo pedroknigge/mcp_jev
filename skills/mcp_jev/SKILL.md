@@ -86,7 +86,7 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **`run_pack`** — **packs are shortcuts** |
 | A typed Choice / Noul / Score judgment **no pack covers** | **`run_questions`** — closed state + typed questions. Not chat. See [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md) |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
-| Which model / tool lane this turn | **`model_router`** — recipe below |
+| Which model / tool lane this turn | **`model_router`** if invented heads match exactly; else **`run_questions`** (model-route recipe below) |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
 | Per-file / full-repo / architecture / "try Jev on these files" | **`mcp_jev scan`** / **`code_audit`** Pass 1 (signals-first) — Full repo scan recipe. Not `pr_audit`. |
 | Hardcoded UI strings vs i18n (`t()` / locale files) | **`i18n_copy`** if invented heads match exactly; else **`run_questions`** (i18n recipe below, equal JSON). Not `code_audit`. |
@@ -103,7 +103,7 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Situation | Pack | Not this |
 | --- | --- | --- |
 | Structured screen state (OCR / AX / DOM ids) → one next click/type/scroll/wait/done | `computer_use_step` | Do not send screenshots. Do not use `intent_router` (utterances) or `model_router` (compute lanes). |
-| Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
+| Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` **only if** invented heads match exactly | Custom lanes / Noul ids → `run_questions` model-route recipe. Do not use it to drive the GUI or classify a chat intent. |
 | Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
 | Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | **Start here for ordinary PR/diff review.** Orchestration stays in the caller. Not `pr_audit` (domain example). |
 | Repo tree / architecture / "try or audit Jev on these files" | `code_audit` via `mcp_jev scan` | Pass 1 signals-only (~RTT, N workers). **`pr_audit` is not the only file-list pack.** |
@@ -259,6 +259,68 @@ Same closed `candidates[]` demo as the pack. Extra Noul `needs_locale_split` →
 }
 ```
 
+#### Model route via `run_questions` (when lanes ≠ `model_router`)
+
+`model_router` is the shortcut **only** for its closed lanes (`fast_local` | `strong_reasoner` | `tools_heavy` | `ask_user` | `skip`) plus Nouls `needs_code_edit` / `needs_browser` / `unsafe_or_irreversible` / `simple_lookup` and Score `difficulty`. If you invented **your** lane ids or different Noul heads (dogfood / host-specific cascade), stay on **`run_questions`**. Map `route.choice` in **your** code either way.
+
+```json
+{
+  "state": {
+    "turn_id": "t1",
+    "user_ask": "Refactor auth middleware across 4 files, run integration tests, push if green.",
+    "context_summary": "Multi-file TypeScript change with git push; host has shell + editor tools.",
+    "available_tools": ["read", "edit", "shell", "git"],
+    "estimated_tokens_in_context": 18000,
+    "prior_failures": 0
+  },
+  "questions": [
+    {
+      "id": "route",
+      "type": "choice",
+      "instructions": "Given `user_ask`, `context_summary`, and `available_tools`, which compute lane should the harness pick for this turn?",
+      "criteria": {
+        "cheap_local": "Trivial lookup or formatting; local/fast model enough.",
+        "strong_reason": "Multi-step reasoning or careful refactor without heavy tool chaining.",
+        "tools_cascade": "Needs several tool rounds (edit + shell + verify) in one turn.",
+        "ask_human": "Ambiguous goal or irreversible risk; ask the user before acting.",
+        "skip_turn": "Out of scope or already done; do nothing."
+      }
+    },
+    {
+      "id": "needs_shell_tools",
+      "type": "noul",
+      "instructions": "Does completing `user_ask` require shell/git tools from `available_tools` (not just read/edit)?",
+      "criteria": {
+        "true": "Shell, tests, or git push are required to finish the ask.",
+        "false": "Read/edit alone would suffice."
+      }
+    },
+    {
+      "id": "irreversible_side_effect",
+      "type": "noul",
+      "instructions": "Would following `user_ask` risk an irreversible remote side effect (e.g. push, deploy, delete)?",
+      "criteria": {
+        "true": "Remote push/deploy/delete or similar is in scope.",
+        "false": "Only local edits/tests; reversible."
+      }
+    },
+    {
+      "id": "difficulty",
+      "type": "score",
+      "instructions": "How hard is this turn given `user_ask` and `estimated_tokens_in_context`?",
+      "criteria": [
+        "Trivial single-step.",
+        "Moderate: a few files or light reasoning.",
+        "Hard: multi-file + tools + judgment.",
+        "Extreme: high blast radius or long horizon."
+      ]
+    }
+  ]
+}
+```
+
+Then pick the model / tool budget **in your code**. Do not invent a sixth pack lane; either use the pack catalog or keep custom ids on `run_questions`.
+
 Anti-patterns: free-form “write me a review”; open-ended options; dumping the whole repo into state; stretching a nearby pack when invented questions do not match exactly.
 
 ## Recipe: `computer_use_step`
@@ -272,7 +334,7 @@ Harness contract (enforced):
 
 ## Recipe: `model_router`
 
-Call at **turn start**, before tools. Map `route.choice` in **code** (unit-test the mapper; no TypeSafe key). Closed lanes — do not invent a sixth:
+Call at **turn start**, before tools. Map `route.choice` in **code** (unit-test the mapper; no TypeSafe key). Closed lanes — do not invent a sixth. **If your invented lane ids or Noul heads differ**, use the **Model route via `run_questions`** recipe above instead of stretching this pack.
 
 | Lane | Meaning |
 | --- | --- |
