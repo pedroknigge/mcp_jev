@@ -122,7 +122,7 @@ mcp_jev doctor          # checkout, dist, wrapper, api_key_set (boolean), host r
 
 On the host, after restart:
 
-1. **`ping`** — `ok`, `packs` ≥ 8, `api_key_set` boolean. Never invent `run_pack` answers if the key is missing.
+1. **`ping`** — `ok`, `packs` ≥ 9, `api_key_set` boolean. Never invent `run_pack` answers if the key is missing.
 2. **`list_packs`** — pick an `id`.
 3. **`describe_pack`** then **`run_pack`**.
 
@@ -182,6 +182,7 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Skill select from a closed list | `skill_router` |
 | Command risk signals | `command_risk` |
 | Generic diff review | `review_diff` |
+| Per-file / full-repo structured audit | `code_audit` |
 | Money / hours / migration merge risk | `pr_audit` |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
@@ -201,6 +202,38 @@ Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap` → Cho
 Example thresholds: request review if any Noul ≥ 0.65; block if `security.noul ≥ 0.75` or `severity.score ≥ 2.5`.
 
 `pr_audit` remains the money / hours / migration merge pack. Distinct id. Do not rename.
+
+### `code_audit` (full-repo / per-file scan)
+
+Millisecond-tier structured engineering audit (layering / blast-radius / verification style checks). **Expect ~network RTT per file; parallelize N workers.** This is not a multi-second LLM review. Jev must not receive the monorepo as prose.
+
+**Pass 1 (default, all files):** harness lists files → filter screenshots/binaries/generated vendor dirs → compact `signals` only → parallel `run_pack` `code_audit` → aggregate top `problem_severity` / most frequent Nouls.
+
+**Pass 2 (top-N only):** resend the hottest files with a short `excerpt` (hard max 1200 chars; oversized → `invalid_state`) for confirmation.
+
+Example gate (`src/policy-examples.ts` `gateCodeAudit`): `ok` | `glance` | `deep_review`. Unit-test the gate without a TypeSafe key.
+
+Pass 1 state (no body):
+
+```json
+{
+  "path": "src/billing/invoice-total.ts",
+  "language": "ts",
+  "role_hint": "domain",
+  "signals": {
+    "loc": 12,
+    "import_count": 1,
+    "top_imports": ["money"],
+    "has_tests_nearby": false,
+    "touches_money": true,
+    "is_generated": false,
+    "complexity_heuristic": 2
+  },
+  "repo_context": "Billing module: invoice line totals."
+}
+```
+
+Optional Mode B: one call with `files[]` (paths only) + short `batch_notes` — Choice `hotspot_file` from that closed catalog, no bodies. If `path` is also set, single-file Mode A wins.
 
 ## Update
 
@@ -313,6 +346,7 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 | --- | --- | --- |
 | `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. Jev does not merge or comment |
 | `review_diff` | Nouls correctness / security / reliability / compat / test_gap; Choice `hotspot_file` from `files[]`; Score `severity` | Orchestration stays in the caller |
+| `code_audit` | Per-file Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Pass 1: signals-only, ~RTT per file, N workers. Pass 2: short excerpt on top-N. Aggregate + `gateCodeAudit` in code |
 | `skill_router` | Noul `needs_skill`; Choice `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. Thresholds in your code |
 | `command_risk` | Nouls `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. Signals only |
 | `intent_router` | Closed intent Choice, jailbreak + policy Nouls, urgency Score | Route / refuse / hand off in code |

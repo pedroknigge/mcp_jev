@@ -149,7 +149,7 @@ export const modelRouterPack: PackDefinition = {
     "Lane semantics (closed catalog — do not invent a sixth lane): fast_local = cheap/local or no model (lookup, format, one obvious tool); strong_reasoner = ambiguous design, hard failure, or a plan that is not yet mechanical; tools_heavy = long tool/browser/shell loop more than a single model burst; ask_user = missing preference, secret, or confirmation (especially irreversible); skip = already done, blocked, or out of scope.",
     "Example thresholds (caller-owned; tune on your traces): if route.confidence < 0.45 → treat as ask_user; if unsafe_or_irreversible.noul ≥ 0.70 → refuse or confirm before tools_heavy / strong_reasoner; if simple_lookup.noul ≥ 0.75 and difficulty.score < 1.5 → force fast_local; if needs_browser.noul ≥ 0.70 and route is fast_local → consider tools_heavy; if difficulty.score ≥ 2.5 and route is fast_local → consider strong_reasoner.",
     "Thresholds live in caller code, not in this MCP.",
-    "Compose with other packs: use model_router first, then intent_router for an utterance, computer_use_step for a GUI catalog, review_diff for a generic diff, or pr_audit for a money/hours merge.",
+    "Compose with other packs: use model_router first, then intent_router for an utterance, computer_use_step for a GUI catalog, review_diff for a generic diff, code_audit for a per-file structured audit, or pr_audit for a money/hours merge.",
     "Closed route catalog. Fork the pack in-repo if you need another lane name.",
   ],
 };

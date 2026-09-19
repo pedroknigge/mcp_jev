@@ -1,4 +1,5 @@
 import { ToolError } from "../errors.js";
+import { codeAuditPack } from "./code-audit.js";
 import { commandRiskPack } from "./command-risk.js";
 import { computerUseStepPack } from "./computer-use-step.js";
 import { intentRouterPack } from "./intent-router.js";
@@ -16,6 +17,7 @@ const packs: PackDefinition[] = [
   computerUseStepPack,
   modelRouterPack,
   reviewDiffPack,
+  codeAuditPack,
   skillRouterPack,
   commandRiskPack,
 ];
