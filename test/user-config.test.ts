@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { loadConfig } from "../src/config.js";
 import { handlePing } from "../src/handlers.js";
-import { parseDotEnv, readUserEnv, writeUserEnv } from "../src/user-config.js";
+import { defaultUserConfigDir, parseDotEnv, readUserEnv, writeUserEnv } from "../src/user-config.js";
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "mcp-jev-config-"));
@@ -27,12 +27,26 @@ test("user store supplies the key when process env is empty", () => {
   assert.equal(config.apiKeySource, "user_store");
 });
 
-test("process env wins over the user store", () => {
+test("user store wins; process env is fallback only", () => {
   const dir = tempDir();
   writeUserEnv({ TYPESAFE_API_KEY: "sk-from-store" }, dir);
-  const config = loadConfig({ TYPESAFE_API_KEY: "sk-from-env" }, { userConfigDir: dir });
-  assert.equal(config.apiKey, "sk-from-env");
-  assert.equal(config.apiKeySource, "env");
+  const both = loadConfig({ TYPESAFE_API_KEY: "sk-from-env" }, { userConfigDir: dir });
+  assert.equal(both.apiKey, "sk-from-store");
+  assert.equal(both.apiKeySource, "user_store");
+
+  const emptyStore = tempDir();
+  const fallback = loadConfig({ TYPESAFE_API_KEY: "sk-from-env" }, { userConfigDir: emptyStore });
+  assert.equal(fallback.apiKey, "sk-from-env");
+  assert.equal(fallback.apiKeySource, "env");
+});
+
+test("MCP_JEV_HOME overrides the ~/.mcp_jev config directory", () => {
+  assert.equal(defaultUserConfigDir({ MCP_JEV_HOME: "/tmp/custom-mcp-jev" }), "/tmp/custom-mcp-jev");
+  assert.equal(defaultUserConfigDir({ MCP_JEV_CONFIG: "/tmp/alias" }), "/tmp/alias");
+  assert.equal(
+    defaultUserConfigDir({ MCP_JEV_HOME: "/tmp/home-wins", MCP_JEV_CONFIG: "/tmp/alias" }),
+    "/tmp/home-wins",
+  );
 });
 
 test("custom env without userConfigDir does not read the real home store", () => {

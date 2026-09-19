@@ -2,15 +2,19 @@
 $ErrorActionPreference = "Stop"
 
 $repoUrl = if ($env:MCP_JEV_REPO) { $env:MCP_JEV_REPO } else { "https://github.com/pedroknigge/mcp_jev.git" }
-$configDir = if ($env:MCP_JEV_CONFIG) { $env:MCP_JEV_CONFIG } else { Join-Path $HOME ".mcp_jev" }
+# MCP_JEV_HOME = user config dir (key + wrapper). Default ~/.mcp_jev
+$configDir = if ($env:MCP_JEV_HOME) { $env:MCP_JEV_HOME } elseif ($env:MCP_JEV_CONFIG) { $env:MCP_JEV_CONFIG } else { Join-Path $HOME ".mcp_jev" }
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir "..") -ErrorAction SilentlyContinue
+$homeRecord = Join-Path $configDir "home"
 
-if ($env:MCP_JEV_HOME) {
-  $repoHome = $env:MCP_JEV_HOME
+if ($env:MCP_JEV_CHECKOUT) {
+  $repoHome = $env:MCP_JEV_CHECKOUT
 } elseif ($repoRoot -and (Test-Path (Join-Path $repoRoot "package.json"))) {
   $pkg = Get-Content (Join-Path $repoRoot "package.json") -Raw
   if ($pkg -match '"name":\s*"mcp_jev"') { $repoHome = $repoRoot.Path } else { $repoHome = Join-Path $HOME "mcp_jev" }
+} elseif (Test-Path $homeRecord) {
+  $repoHome = (Get-Content -Raw $homeRecord).Trim()
 } else {
   $repoHome = Join-Path $HOME "mcp_jev"
 }
@@ -58,8 +62,8 @@ $wrapper = Join-Path $configDir "bin\mcp_jev.cmd"
 @(
   "@echo off"
   "setlocal"
-  "if defined MCP_JEV_CONFIG (set CFG=%MCP_JEV_CONFIG%) else (set CFG=%USERPROFILE%\.mcp_jev)"
-  "if defined MCP_JEV_HOME (set REPO=%MCP_JEV_HOME%) else if exist %CFG%\home (set /p REPO=<%CFG%\home) else (set REPO=%USERPROFILE%\mcp_jev)"
+  "if defined MCP_JEV_HOME (set CFG=%MCP_JEV_HOME%) else if defined MCP_JEV_CONFIG (set CFG=%MCP_JEV_CONFIG%) else (set CFG=%USERPROFILE%\.mcp_jev)"
+  "if defined MCP_JEV_CHECKOUT (set REPO=%MCP_JEV_CHECKOUT%) else if exist %CFG%\home (set /p REPO=<%CFG%\home) else (set REPO=%USERPROFILE%\mcp_jev)"
   "if exist %CFG%\.env for /f `"usebackq tokens=1,* delims==`" %%A in (`"%CFG%\.env`") do ("
   "  if not `"%%A`"==`"`" if not `"%%A:~0,1`"==`"#`" set `"%%A=%%B`""
   ")"
@@ -68,17 +72,20 @@ $wrapper = Join-Path $configDir "bin\mcp_jev.cmd"
 
 $envFile = Join-Path $configDir ".env"
 if ($env:TYPESAFE_API_KEY) {
+  $env:MCP_JEV_HOME = $configDir
   node (Join-Path $repoHome "dist\index.js") config set-key $env:TYPESAFE_API_KEY
 } elseif ((Test-Path $envFile) -and (Select-String -Path $envFile -Pattern "^TYPESAFE_API_KEY=.+" -Quiet)) {
   Write-Host "Keeping existing key in $envFile"
 } else {
   Write-Host ""
-  Write-Host "Set your TypeSafe key ONCE (https://console.typesafe.ai). Host mcp.json stays keyless."
+  Write-Host "Set your TypeSafe key ONCE (https://console.typesafe.ai). Any agent that attaches this MCP reuses it."
+  Write-Host "Host mcp.json stays keyless."
   if ($Host.UI.RawUI) {
+    $env:MCP_JEV_HOME = $configDir
     node (Join-Path $repoHome "dist\index.js") config set-key
   } else {
     Write-Host "Non-interactive: re-run with `$env:TYPESAFE_API_KEY or:"
-    Write-Host "  node `"$repoHome\dist\index.js`" config set-key"
+    Write-Host "  `$env:MCP_JEV_HOME='$configDir'; node `"$repoHome\dist\index.js`" config set-key"
   }
 }
 

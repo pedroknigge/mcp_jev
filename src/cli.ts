@@ -24,8 +24,9 @@ Usage:
   mcp_jev config path         Print the user config directory
   mcp_jev help
 
-The TypeSafe key is installed ONCE in the user store. MCP host configs should
-point at the wrapper (~/.mcp_jev/bin/mcp_jev) and omit the key.
+The TypeSafe key is installed ONCE in ~/.mcp_jev/.env (override: MCP_JEV_HOME).
+Any agent that attaches this MCP reuses it. Host configs should point at
+~/.mcp_jev/bin/mcp_jev and omit the key.
 
 Repo: https://github.com/pedroknigge/mcp_jev
 `);

@@ -3,8 +3,8 @@
 # Do not print anything to stdout — that breaks MCP.
 set -euo pipefail
 
-CONFIG_DIR="${MCP_JEV_CONFIG:-$HOME/.mcp_jev}"
-REPO="${MCP_JEV_HOME:-}"
+CONFIG_DIR="${MCP_JEV_HOME:-${MCP_JEV_CONFIG:-$HOME/.mcp_jev}}"
+REPO="${MCP_JEV_CHECKOUT:-}"
 
 if [[ -z "$REPO" && -f "$CONFIG_DIR/home" ]]; then
   REPO="$(tr -d '\r\n' < "$CONFIG_DIR/home")"

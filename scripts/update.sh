@@ -2,7 +2,7 @@
 # One-shot update: git pull + npm install + build. Preserves ~/.mcp_jev/.env.
 set -euo pipefail
 
-CONFIG_DIR="${MCP_JEV_CONFIG:-$HOME/.mcp_jev}"
+CONFIG_DIR="${MCP_JEV_HOME:-${MCP_JEV_CONFIG:-$HOME/.mcp_jev}}"
 
 if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,8 +10,8 @@ else
   SCRIPT_DIR=""
 fi
 
-if [[ -n "${MCP_JEV_HOME:-}" ]]; then
-  REPO_HOME="$MCP_JEV_HOME"
+if [[ -n "${MCP_JEV_CHECKOUT:-}" ]]; then
+  REPO_HOME="$MCP_JEV_CHECKOUT"
 elif [[ -f "$CONFIG_DIR/home" ]]; then
   REPO_HOME="$(tr -d '\r\n' < "$CONFIG_DIR/home")"
 elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/../package.json" ]]; then
@@ -43,8 +43,8 @@ WRAPPER="$CONFIG_DIR/bin/mcp_jev"
 cat > "$WRAPPER" <<'WRAP'
 #!/usr/bin/env bash
 set -euo pipefail
-CONFIG_DIR="${MCP_JEV_CONFIG:-$HOME/.mcp_jev}"
-REPO="${MCP_JEV_HOME:-}"
+CONFIG_DIR="${MCP_JEV_HOME:-${MCP_JEV_CONFIG:-$HOME/.mcp_jev}}"
+REPO="${MCP_JEV_CHECKOUT:-}"
 if [[ -z "$REPO" && -f "$CONFIG_DIR/home" ]]; then
   REPO="$(tr -d '\r\n' < "$CONFIG_DIR/home")"
 fi

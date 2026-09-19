@@ -54,7 +54,7 @@ If the user wants a question that is not in a pack, say this server cannot do th
 
 ## Key is installed once
 
-Configure `TYPESAFE_API_KEY` **once** (`install.sh` prompt or `mcp_jev config set-key`). Every host that launches `~/.mcp_jev/bin/mcp_jev` reuses it. Do not embed the key in Cursor/Claude/Codex/Grok entries. `ping.api_key_set` / `api_key_source` (`user_store` \| `env` \| `none`) never include the secret.
+Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `mcp_jev config set-key`). Any agent that attaches this MCP reuses it. Do not embed the key in Cursor/Claude/Codex/Grok entries. `ping.api_key_set` / `api_key_source` (`user_store` \| `env` \| `none`) never include the secret. The store at `~/.mcp_jev/.env` (override: `MCP_JEV_HOME`) wins; process env is fallback only.
 
 ## Verify
 
@@ -135,8 +135,9 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 | Variable | Role |
 | --- | --- |
 | `TYPESAFE_API_KEY` | For `run_pack`. Prefer `~/.mcp_jev/.env` |
-| `MCP_JEV_HOME` | Checkout (default `~/mcp_jev`) |
-| `MCP_JEV_CONFIG` | Key + wrapper (default `~/.mcp_jev`) |
+| `MCP_JEV_HOME` | User config dir (default `~/.mcp_jev`) — key + wrapper |
+| `MCP_JEV_CONFIG` | Alias for `MCP_JEV_HOME` |
+| `MCP_JEV_CHECKOUT` | Git checkout (default `~/mcp_jev`) |
 | `TYPESAFE_BASE_URL` / `JEV_MODEL` / `TYPESAFE_DEFAULT_MODEL` | Optional |
 
-Process env overrides the user store. Repo `.env` is not auto-loaded.
+The user store wins; process env is fallback only. Repo `.env` is not auto-loaded.

@@ -3,7 +3,8 @@
 set -euo pipefail
 
 REPO_URL="${MCP_JEV_REPO:-https://github.com/pedroknigge/mcp_jev.git}"
-CONFIG_DIR="${MCP_JEV_CONFIG:-$HOME/.mcp_jev}"
+# MCP_JEV_HOME = user config dir (key + wrapper). Default ~/.mcp_jev
+CONFIG_DIR="${MCP_JEV_HOME:-${MCP_JEV_CONFIG:-$HOME/.mcp_jev}}"
 
 if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,10 +12,12 @@ else
   SCRIPT_DIR=""
 fi
 
-if [[ -n "${MCP_JEV_HOME:-}" ]]; then
-  REPO_HOME="$MCP_JEV_HOME"
+if [[ -n "${MCP_JEV_CHECKOUT:-}" ]]; then
+  REPO_HOME="$MCP_JEV_CHECKOUT"
 elif [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/../package.json" ]] && grep -q '"name": "mcp_jev"' "$SCRIPT_DIR/../package.json"; then
   REPO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
+elif [[ -f "$CONFIG_DIR/home" ]]; then
+  REPO_HOME="$(tr -d '\r\n' < "$CONFIG_DIR/home")"
 else
   REPO_HOME="$HOME/mcp_jev"
 fi
@@ -67,8 +70,8 @@ WRAPPER="$CONFIG_DIR/bin/mcp_jev"
 cat > "$WRAPPER" <<'WRAP'
 #!/usr/bin/env bash
 set -euo pipefail
-CONFIG_DIR="${MCP_JEV_CONFIG:-$HOME/.mcp_jev}"
-REPO="${MCP_JEV_HOME:-}"
+CONFIG_DIR="${MCP_JEV_HOME:-${MCP_JEV_CONFIG:-$HOME/.mcp_jev}}"
+REPO="${MCP_JEV_CHECKOUT:-}"
 if [[ -z "$REPO" && -f "$CONFIG_DIR/home" ]]; then
   REPO="$(tr -d '\r\n' < "$CONFIG_DIR/home")"
 fi
@@ -90,17 +93,18 @@ chmod 755 "$WRAPPER"
 
 ENV_FILE="$CONFIG_DIR/.env"
 if [[ -n "${TYPESAFE_API_KEY:-}" ]]; then
-  node "$REPO_HOME/dist/index.js" config set-key "$TYPESAFE_API_KEY"
+  MCP_JEV_HOME="$CONFIG_DIR" node "$REPO_HOME/dist/index.js" config set-key "$TYPESAFE_API_KEY"
 elif [[ -f "$ENV_FILE" ]] && grep -q '^TYPESAFE_API_KEY=.\+' "$ENV_FILE"; then
   say "Keeping existing key in $ENV_FILE"
 else
   say ""
-  say "Set your TypeSafe key ONCE (https://console.typesafe.ai). Host mcp.json stays keyless."
+  say "Set your TypeSafe key ONCE (https://console.typesafe.ai). Any agent that attaches this MCP reuses it."
+  say "Host mcp.json stays keyless."
   if [[ -t 0 ]]; then
-    node "$REPO_HOME/dist/index.js" config set-key
+    MCP_JEV_HOME="$CONFIG_DIR" node "$REPO_HOME/dist/index.js" config set-key
   else
     say "Non-interactive: re-run with TYPESAFE_API_KEY=… or:"
-    say "  node \"$REPO_HOME/dist/index.js\" config set-key"
+    say "  MCP_JEV_HOME=\"$CONFIG_DIR\" node \"$REPO_HOME/dist/index.js\" config set-key"
   fi
 fi
 

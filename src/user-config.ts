@@ -8,14 +8,12 @@ export type UserEnv = Partial<Record<(typeof USER_ENV_KEYS)[number], string>>;
 
 export type ApiKeySource = "env" | "user_store" | "none";
 
-export function defaultUserConfigDir(): string {
-  const override = process.env.MCP_JEV_CONFIG?.trim();
-  return override || path.join(os.homedir(), ".mcp_jev");
+export function defaultUserConfigDir(env: NodeJS.ProcessEnv = process.env): string {
+  return trim(env.MCP_JEV_HOME) || trim(env.MCP_JEV_CONFIG) || path.join(os.homedir(), ".mcp_jev");
 }
 
-export function defaultRepoHome(): string {
-  const override = process.env.MCP_JEV_HOME?.trim();
-  return override || path.join(os.homedir(), "mcp_jev");
+export function defaultRepoHome(env: NodeJS.ProcessEnv = process.env): string {
+  return trim(env.MCP_JEV_CHECKOUT) || path.join(os.homedir(), "mcp_jev");
 }
 
 export function userEnvPath(dir: string = defaultUserConfigDir()): string {
@@ -117,12 +115,12 @@ export function resolveApiKey(
   env: NodeJS.ProcessEnv,
   stored: UserEnv,
 ): { apiKey: string | undefined; source: ApiKeySource } {
+  if (stored.TYPESAFE_API_KEY) {
+    return { apiKey: stored.TYPESAFE_API_KEY, source: "user_store" };
+  }
   const fromEnv = trim(env.TYPESAFE_API_KEY);
   if (fromEnv) {
     return { apiKey: fromEnv, source: "env" };
-  }
-  if (stored.TYPESAFE_API_KEY) {
-    return { apiKey: stored.TYPESAFE_API_KEY, source: "user_store" };
   }
   return { apiKey: undefined, source: "none" };
 }

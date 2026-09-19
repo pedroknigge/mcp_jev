@@ -23,7 +23,7 @@ Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [do
 **Prerequisites:** Node.js **20+**, git, a TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai).
 
 ```bash
-# macOS / Linux — default checkout ~/mcp_jev (override: MCP_JEV_HOME)
+# macOS / Linux — checkout ~/mcp_jev; key + wrapper in ~/.mcp_jev (override: MCP_JEV_HOME)
 git clone https://github.com/pedroknigge/mcp_jev.git ~/mcp_jev
 ~/mcp_jev/scripts/install.sh
 ```
@@ -34,7 +34,7 @@ git clone https://github.com/pedroknigge/mcp_jev.git $HOME\mcp_jev
 $HOME\mcp_jev\scripts\install.ps1
 ```
 
-Already cloned (e.g. Pedro’s Desktop path `/Users/pedroknigge/Desktop/mcp_jev`)? Run `./scripts/install.sh` from that repo. `MCP_JEV_HOME` sets the checkout; `MCP_JEV_CONFIG` defaults to `~/.mcp_jev`.
+Already cloned (e.g. Pedro’s Desktop path `/Users/pedroknigge/Desktop/mcp_jev`)? Run `./scripts/install.sh` from that repo. `MCP_JEV_HOME` overrides the **config dir** (`~/.mcp_jev`). Optional `MCP_JEV_CHECKOUT` overrides the git checkout.
 
 The script: clones or pulls → `npm install && npm run build` → writes `~/.mcp_jev/bin/mcp_jev` → stores `TYPESAFE_API_KEY` **once** in `~/.mcp_jev/.env` (chmod 600) → prints/copies the MCP JSON.
 
@@ -115,7 +115,7 @@ Python exists (`typesafe-sdk`, `client.system_one`) if you are writing app code.
 
 **Easiest path:** install script → one keyless `command` pointing at `~/.mcp_jev/bin/mcp_jev` → restart → `ping`. Other hosts below; full stanzas in [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md).
 
-The server reads `TYPESAFE_API_KEY` from **`~/.mcp_jev/.env` first via the wrapper / `loadConfig`**, and only needs a host `env` block if you override it. Process env wins over the store when both exist.
+The server reads `TYPESAFE_API_KEY` from **`~/.mcp_jev/.env` (or `$MCP_JEV_HOME/.env`)**. Process env is a fallback only when the store is empty. Host `mcp.json` must stay keyless.
 
 Generic JSON (most hosts):
 
@@ -259,16 +259,17 @@ flowchart LR
 | `TYPESAFE_BASE_URL` | No | SDK: `https://api.typesafe.ai` |
 | `JEV_MODEL` | No | `jev-latest` |
 | `TYPESAFE_DEFAULT_MODEL` | No | Used if `JEV_MODEL` is unset |
-| `MCP_JEV_HOME` | No | `~/mcp_jev` (checkout) |
-| `MCP_JEV_CONFIG` | No | `~/.mcp_jev` (key + wrapper) |
+| `MCP_JEV_HOME` | No | `~/.mcp_jev` (key + wrapper) |
+| `MCP_JEV_CONFIG` | No | Alias for `MCP_JEV_HOME` |
+| `MCP_JEV_CHECKOUT` | No | Git checkout (default `~/mcp_jev` or the repo you ran the script from) |
 
-Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. Process env overrides the store.
+Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.
 
 CLI: `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
 
 ## Security
 
-- Key lives in **`~/.mcp_jev/.env` (0600)** or a process override. Never in git, chat, or host JSON.
+- Key lives in **`~/.mcp_jev/.env` (0600)**. Never in git, chat, or host JSON. Process env is fallback only if the store is empty.
 - `ping` / `config status` never print the key.
 - `scripts/update.sh` does not overwrite the key file.
 - Run locally. Do not deploy this stdio binary as a public HTTP proxy.
@@ -279,7 +280,7 @@ CLI: `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path
 
 | Symptom | Fix |
 | --- | --- |
-| `ping` → `api_key_set: false` | Run `node $MCP_JEV_HOME/dist/index.js config set-key`. Confirm `~/.mcp_jev/.env` exists. Restart the host. |
+| `ping` → `api_key_set: false` | Run `mcp_jev config set-key` (or `node ~/mcp_jev/dist/index.js config set-key`). Confirm `~/.mcp_jev/.env` exists. Restart the host. |
 | `run_pack` → `missing_api_key` | Same. Do not fabricate answers. |
 | `run_pack` → `auth` | Key rejected (HTTP 401). Rotate at the TypeSafe dashboard, then `config set-key`. |
 | `invalid_state` | Re-read `describe_pack`. Starter packs reject extra fields. |

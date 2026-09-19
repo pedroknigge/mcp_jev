@@ -1,12 +1,12 @@
 # One-shot update: git pull + npm install + build. Preserves $HOME\.mcp_jev\.env.
 $ErrorActionPreference = "Stop"
 
-$configDir = if ($env:MCP_JEV_CONFIG) { $env:MCP_JEV_CONFIG } else { Join-Path $HOME ".mcp_jev" }
+$configDir = if ($env:MCP_JEV_HOME) { $env:MCP_JEV_HOME } elseif ($env:MCP_JEV_CONFIG) { $env:MCP_JEV_CONFIG } else { Join-Path $HOME ".mcp_jev" }
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $homeFile = Join-Path $configDir "home"
 
-if ($env:MCP_JEV_HOME) {
-  $repoHome = $env:MCP_JEV_HOME
+if ($env:MCP_JEV_CHECKOUT) {
+  $repoHome = $env:MCP_JEV_CHECKOUT
 } elseif (Test-Path $homeFile) {
   $repoHome = (Get-Content -Raw $homeFile).Trim()
 } elseif (Test-Path (Join-Path $scriptDir "..\package.json")) {
@@ -40,8 +40,8 @@ $wrapper = Join-Path $configDir "bin\mcp_jev.cmd"
 @(
   "@echo off"
   "setlocal"
-  "if defined MCP_JEV_CONFIG (set CFG=%MCP_JEV_CONFIG%) else (set CFG=%USERPROFILE%\.mcp_jev)"
-  "if defined MCP_JEV_HOME (set REPO=%MCP_JEV_HOME%) else if exist %CFG%\home (set /p REPO=<%CFG%\home) else (set REPO=%USERPROFILE%\mcp_jev)"
+  "if defined MCP_JEV_HOME (set CFG=%MCP_JEV_HOME%) else if defined MCP_JEV_CONFIG (set CFG=%MCP_JEV_CONFIG%) else (set CFG=%USERPROFILE%\.mcp_jev)"
+  "if defined MCP_JEV_CHECKOUT (set REPO=%MCP_JEV_CHECKOUT%) else if exist %CFG%\home (set /p REPO=<%CFG%\home) else (set REPO=%USERPROFILE%\mcp_jev)"
   "if exist %CFG%\.env for /f `"usebackq tokens=1,* delims==`" %%A in (`"%CFG%\.env`") do ("
   "  if not `"%%A`"==`"`" if not `"%%A:~0,1`"==`"#`" set `"%%A=%%B`""
   ")"

@@ -1,8 +1,8 @@
 # Load the one-time user store, then exec the stdio MCP server.
 # Do not Write-Host anything to stdout — that breaks MCP.
 $ErrorActionPreference = "Stop"
-$configDir = if ($env:MCP_JEV_CONFIG) { $env:MCP_JEV_CONFIG } else { Join-Path $HOME ".mcp_jev" }
-$repo = $env:MCP_JEV_HOME
+$configDir = if ($env:MCP_JEV_HOME) { $env:MCP_JEV_HOME } elseif ($env:MCP_JEV_CONFIG) { $env:MCP_JEV_CONFIG } else { Join-Path $HOME ".mcp_jev" }
+$repo = $env:MCP_JEV_CHECKOUT
 $homeFile = Join-Path $configDir "home"
 if (-not $repo -and (Test-Path $homeFile)) {
   $repo = (Get-Content -Raw $homeFile).Trim()
