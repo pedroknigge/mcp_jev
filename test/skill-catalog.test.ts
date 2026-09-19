@@ -45,6 +45,8 @@ test("SKILL.md covers every registry pack id and points at the catalog", () => {
   assert.match(skill, /mcp_jev config status/);
   assert.match(skill, /mcp_jev config path/);
   assert.match(skill, /mcp_jev scan/);
+  assert.match(skill, /mcp_jev smoke/);
+  assert.match(skill, /mcp_jev help/);
   assert.match(skill, /dist\/cli\.js scan/);
 
   for (const pack of listPacks()) {

@@ -109,7 +109,7 @@ Later: `node ~/mcp_jev/dist/index.js config set-key`
 | **Install script (prefer this)** | Humans and agents. Key once, keyless host config. |
 | Git clone + manual build | `npm install && npm run build && npm test` in `REPO_PATH`. Then `node dist/index.js config set-key`. |
 | `npx -y github:pedroknigge/mcp_jev` | No clone. Slow first start. Still run `config set-key` so hosts stay keyless. |
-| `npx -y mcp_jev` | **Not on npm yet.** Future published bin (`mcp_jev` → `dist/index.js`). |
+| `npx -y mcp_jev` | Published bin (`mcp_jev` → `dist/index.js`): no-args = stdio MCP; `help` / `doctor` / `scan` / `smoke` = CLI. First publish is a maintainer step — [docs/PUBLISH.md](docs/PUBLISH.md). Until then this 404s; use the install script or `npx -y github:pedroknigge/mcp_jev`. |
 
 `npm test` mocks TypeSafe and must pass without a live key.
 
@@ -118,7 +118,8 @@ Later: `node ~/mcp_jev/dist/index.js config set-key`
 ```bash
 mcp_jev doctor          # checkout, dist, wrapper, api_key_set (boolean), host registration
 # or: node ~/mcp_jev/dist/index.js doctor --json
-~/mcp_jev/scripts/verify-mcp.sh   # stdio JSON-RPC: initialize, tools/list, ping, list_packs
+mcp_jev smoke           # stdio JSON-RPC: initialize, tools/list, ping, list_packs
+~/mcp_jev/scripts/verify-mcp.sh   # same smoke as a script
 ```
 
 On the host, after restart:
@@ -127,7 +128,7 @@ On the host, after restart:
 2. **`list_packs`** — pick an `id`.
 3. **`describe_pack`** then **`run_pack`**.
 
-CLI: `mcp_jev doctor` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
+CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
 
 ## Recipes
 
@@ -423,7 +424,7 @@ flowchart LR
 
 Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.
 
-CLI: `mcp_jev doctor` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
+CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
 
 ## Security
 
@@ -446,7 +447,7 @@ CLI: `mcp_jev doctor` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_
 | `unknown_pack` | `list_packs`. There is no `ask_jev`. |
 | Wrong Node | `node -v` must be 20+. GUI hosts may not see nvm. |
 | stdio pollution | Wrapper and server must not write to **stdout**. |
-| `npx mcp_jev` 404 | Not on npm yet. Use the install script or `npx -y github:pedroknigge/mcp_jev`. |
+| `npx mcp_jev` 404 | First npm publish not done yet (maintainer). Use the install script or `npx -y github:pedroknigge/mcp_jev`. After publish: `npx -y mcp_jev` is the bin. See [docs/PUBLISH.md](docs/PUBLISH.md). |
 
 ## Scripts
 
@@ -459,6 +460,7 @@ npm start                # node dist/index.js (MCP stdio)
 npm test
 npm run typecheck
 mcp_jev doctor
+mcp_jev smoke            # same stdio check as verify-mcp.sh
 ```
 
 ## License

@@ -57,3 +57,7 @@ Add a registry or handler test if the pack has a special contract (for example: 
 ## Pull requests
 
 Keep diffs surgical. `npm test` and `npm run build` must pass. Say what you verified (mocked `systemOne`, registry load). Do not call TypeSafe in CI unless the maintainer has provided a secret.
+
+## Publishing
+
+Do **not** `npm publish` from a PR. Maintainer checklist (version bump, `npm login`, `npm publish`, git tag `v*`, GitHub Release, required `NPM_TOKEN` secret): [docs/PUBLISH.md](docs/PUBLISH.md).

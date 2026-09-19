@@ -1,0 +1,11 @@
+# files[] is the allowlist. This keeps src/tests/CI out if someone drops files[].
+src
+test
+.github
+.gitignore
+tsconfig.json
+*.log
+coverage
+.env
+.env.local
+.env.*.local

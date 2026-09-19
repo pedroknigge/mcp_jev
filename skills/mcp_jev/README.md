@@ -23,7 +23,8 @@ The skill does not start Jev. From the repo:
 ./scripts/install.sh    # key once → keyless host snippets
 ./scripts/update.sh     # pull + build; keeps ~/.mcp_jev/.env
 mcp_jev doctor          # checkout, dist, wrapper, key boolean
-./scripts/verify-mcp.sh # stdio smoke, no TypeSafe call
+mcp_jev smoke           # stdio initialize / tools / ping / list_packs (no TypeSafe)
+./scripts/verify-mcp.sh # same smoke as a script
 ```
 
 Then paste the printed MCP snippets (or `mcp_jev hosts write`) and restart the host.
