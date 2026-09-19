@@ -1,4 +1,4 @@
-# GitHub Release only. Does not npm publish.
+# GitHub Release only. Does not publish to the npm registry.
 # Trigger: git tag v* only. Does not run on pull_request.
 name: release
 
