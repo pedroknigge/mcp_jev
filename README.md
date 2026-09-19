@@ -13,6 +13,7 @@ Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [do
 - [Why mcp_jev](#why-mcp_jev)
 - [Install (happy path)](#install-happy-path)
 - [First-run](#first-run)
+- [Verify](#verify)
 - [Recipes](#recipes)
 - [Update](#update)
 - [Skill stays in sync](#skill-stays-in-sync)
@@ -120,6 +121,7 @@ mcp_jev doctor          # checkout, dist, wrapper, api_key_set (boolean), host r
 # or: node ~/mcp_jev/dist/index.js doctor --json
 mcp_jev smoke           # stdio JSON-RPC: initialize, tools/list, ping, list_packs
 ~/mcp_jev/scripts/verify-mcp.sh   # same smoke as a script
+npm run smoke:packs               # ping → list_packs → describe+run every pack (mocked TypeSafe)
 ```
 
 On the host, after restart:
@@ -129,6 +131,17 @@ On the host, after restart:
 3. **`describe_pack`** then **`run_pack`**.
 
 CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
+
+## Verify
+
+```bash
+npm test                         # unit tests; mocked TypeSafe; no live key
+./scripts/verify-mcp.sh          # stdio JSON-RPC: initialize, tools/list, ping, list_packs
+npm run smoke:packs              # ping → list_packs → describe_pack + run_pack(example_state) for every pack
+npm run smoke:packs -- --live    # real TypeSafe from TYPESAFE_API_KEY or ~/.mcp_jev/.env
+```
+
+Default `smoke:packs` injects the same mocked `systemOne` pattern as `npm test` (no network). It prints a table (`pack`, `ok`, `ms`, `error`) and exits non-zero if any pack fails. `--live` is skipped in CI unless `TYPESAFE_API_KEY` is set and `SMOKE_LIVE=1`.
 
 ## Recipes
 
@@ -455,6 +468,7 @@ CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev ho
 ./scripts/install.sh     # happy path
 ./scripts/update.sh
 ./scripts/verify-mcp.sh  # stdio smoke, no TypeSafe call
+npm run smoke:packs      # mocked run_pack for every pack
 npm run build            # tsc → dist/
 npm start                # node dist/index.js (MCP stdio)
 npm test
