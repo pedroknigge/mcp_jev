@@ -23,6 +23,7 @@ Do not commit `.env` or API keys.
 1. Create `src/packs/<name>.ts` exporting a `PackDefinition`.
 2. Register it in `src/packs/registry.ts`.
 3. Bump the pack `version` on any question or schema change (`1.0.0` → `1.1.0` for compatible adds, `2.0.0` if state or question IDs break callers).
+4. Run `npx tsx scripts/sync-skill-catalog.ts` (rewrites `skills/mcp_jev/references/pack-catalog.md`) and mention the new `id` plus exact question ids in `skills/mcp_jev/SKILL.md`. `npm test` fails if either lags.
 
 A pack must include:
 

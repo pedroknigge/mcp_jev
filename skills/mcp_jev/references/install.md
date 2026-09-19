@@ -16,7 +16,7 @@ Non-interactive without a key writes `~/.mcp_jev/NOT_READY` and exits non-zero.
 }
 ```
 
-Windows: `%USERPROFILE%\.mcp_jev\bin\mcp_jev.cmd`. Update: `scripts/update.sh` (keeps the key).
+Windows: `%USERPROFILE%\.mcp_jev\bin\mcp_jev.cmd`. Update: `scripts/update.sh` (keeps the key). Then reload the skill (`npx skills add pedroknigge/mcp_jev --skill mcp_jev` or copy `skills/mcp_jev`).
 
 ## Cursor
 

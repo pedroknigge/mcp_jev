@@ -16,7 +16,7 @@ description: >
 
 **Jev is not an LLM chat model.** TypeSafe System One (flagship: Jev) takes **state + typed questions** and returns **Choice / Noul / Score** answers. This MCP **only runs versioned packs** from the mcp_jev repo. Side effects stay in your code. mcp_jev is the judgment layer: fast typed decisions for agents and harnesses.
 
-**Latest install/config source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) (README + `scripts/`). TypeSafe API docs: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Host extras: [`references/install.md`](references/install.md).
+**Latest install/config source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) (README + `scripts/`). TypeSafe API docs: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Host extras: [`references/install.md`](references/install.md). **Exact pack ids, state fields, and question ids:** [`references/pack-catalog.md`](references/pack-catalog.md) (generated from `src/packs/`; `npm test` fails if it drifts).
 
 ## First-run script
 
@@ -54,7 +54,19 @@ Do **not** invent `ask_jev` or pretend Jev ran. Tell the user to install from th
 3. **Host config:** paste or `mcp_jev hosts write all`. Command = `~/.mcp_jev/bin/mcp_jev`.
 4. Restart the host. Call **`ping`**, then **`list_packs`**.
 
-Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host.
+Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → **reload this skill** → restart host.
+
+### After `update.sh` — reload this skill
+
+Pull updates `skills/mcp_jev` in the checkout. **Hosts do not auto-reload skills.** Re-load from the checkout or re-add:
+
+```bash
+npx skills add pedroknigge/mcp_jev --skill mcp_jev
+# or copy (only into a project you mean to update — do not write into random trees):
+cp -R "$REPO_HOME/skills/mcp_jev" .cursor/skills/mcp_jev   # also .claude/skills
+```
+
+Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cursor/skills/mcp_jev` or `~/.cursor/skills/mcp_jev` **only if that `.cursor/skills` directory already exists**.
 
 ### Say this to your agent
 
@@ -185,6 +197,23 @@ Keyless `command` is always `~/.mcp_jev/bin/mcp_jev` (Windows: `mcp_jev.cmd`).
 
 `mcp_jev hosts print` · `mcp_jev hosts write all` · `MCP_JEV_WRITE_HOSTS=all ./scripts/install.sh`. `doctor` reports whether those files exist and whether `mcp_jev` is registered (informational).
 
+## CLI (`mcp_jev` / `node dist/index.js`)
+
+No-args starts the stdio MCP server. Commands (never print the TypeSafe key):
+
+| Command | What it does |
+| --- | --- |
+| `mcp_jev` | Start stdio MCP |
+| `mcp_jev doctor` | Checkout, dist, wrapper, `api_key_set` (boolean), `NOT_READY` absent. Host files are informational. Exit 1 if not ready. |
+| `mcp_jev doctor --json` | Same report as JSON (`ok`, `ready`, `checks[]` ids: `checkout`, `dist`, `wrapper`, `api_key`, `not_ready_marker`; optional `hosts[]`) |
+| `mcp_jev hosts print` | Keyless snippets for Cursor, Claude Desktop, Claude Code, Codex, Grok, Antigravity |
+| `mcp_jev hosts write [ids]` | Merge snippets (`all` or comma list: `cursor,claude_desktop,claude_code,codex,grok,antigravity`) |
+| `mcp_jev config set-key` | Interactive store of `TYPESAFE_API_KEY` in `~/.mcp_jev/.env` (chmod 600) |
+| `mcp_jev config set-key KEY` | Same, non-interactive |
+| `mcp_jev config status` | Paths + `api_key_set` / `api_key_source` (never the secret) |
+| `mcp_jev config path` | Print the user config directory |
+| `mcp_jev help` | Usage |
+
 ## Key is installed once
 
 Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `mcp_jev config set-key`). Any agent that attaches this MCP reuses it. Do not embed the key in Cursor/Claude/Codex/Grok entries. `ping.api_key_set` / `api_key_source` (`user_store` \| `env` \| `none`) never include the secret. The store at `~/.mcp_jev/.env` (override: `MCP_JEV_HOME`) wins; process env is fallback only.
@@ -214,7 +243,7 @@ Four tools. No others.
 ### `describe_pack`
 
 - Args: `{ pack_id: string }`
-- Returns schema, questions, `example_state`, `suggested_workflow`, `notes`
+- Returns `id`, `version`, `title`, `summary`, `when_to_use`, `state_schema`, `questions`, `dynamic_choice_from_state`, `example_state`, `suggested_workflow`, `notes`
 - Unknown id → `unknown_pack`
 
 ### `run_pack`
@@ -223,25 +252,25 @@ Four tools. No others.
 - Validates state, calls `TypeSafeClient.systemOne`
 - Returns `{ pack_id, pack_version, model, answers, usage }` (plus additive `guidance` on `computer_use_step`)
 - No side effects
-- Errors: `missing_api_key`, `invalid_state` (may include structured `details.missing`), `unknown_pack`, `auth`, `rate_limit`, `timeout`, `connection`, `validation`
+- Errors: `missing_api_key`, `invalid_arguments`, `invalid_state` (may include structured `details.missing`), `unknown_pack`, `auth`, `rate_limit`, `timeout`, `connection`, `validation`
 
 Skip `describe_pack` only when you already have that pack's schema in **this** session.
 
 ## Pack catalog (in-repo)
 
-Packs live under `src/packs/` in [pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev). New packs are added in-repo. Always `list_packs`.
+Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New packs are added in-repo. Always `list_packs`. **Full state schema + example_state + notes:** [`references/pack-catalog.md`](references/pack-catalog.md).
 
-| id | Jev answers | Caller still does |
-| --- | --- | --- |
-| `pr_audit` | `merge_risk`; Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. |
-| `review_diff` | Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`; Choice `hotspot_file`; Score `severity` | Gate and comments in caller code. |
-| `code_audit` | Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Pass 1 signals-only (~RTT, N workers). Pass 2 short excerpt on top-N. `gateCodeAudit` in code. |
-| `skill_router` | `needs_skill`; `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. |
-| `command_risk` | `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. |
-| `intent_router` | `intent`; Nouls `jailbreak` / `policy_violation`; Score `urgency` | Route / refuse in code. |
-| `locale_country` | `country` (AR/US/IN/UY/SA/`unclear`); Noul `explicit_geo_cue`; Score `locale_signal` | Write the catalogue yourself. |
-| `computer_use_step` | `operation`; targets from your item ids; Nouls `goal_achieved` / `observation_stale`; Score `step_confidence`; `guidance` | Observe, click/type/scroll, writer LLM for text, stop. No screenshots in state. |
-| `model_router` | `route`; Nouls `needs_code_edit` / `needs_browser` / `unsafe_or_irreversible` / `simple_lookup`; Score `difficulty` | Map the lane. Thresholds in your code. |
+| id | State (exact keys) | Jev answers (exact ids) | Caller still does |
+| --- | --- | --- | --- |
+| `pr_audit` | required `title`, `body`, `files`, `diff_summary`; optional `flags.touches_money`, `flags.touches_hours`, `flags.migration` | Choice `merge_risk` (`safe_ui` \| `needs_review` \| `block`); Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. |
+| `intent_router` | required `message`; optional `channel`, `user_role`, `locale` | Choice `intent` (`faq` \| `action` \| `handoff` \| `smalltalk` \| `other`); Nouls `jailbreak` / `policy_violation`; Score `urgency` | Route / refuse in code. |
+| `locale_country` | required `name`; optional `description`, `hints` | Choice `country` (`argentina` \| `usa` \| `india` \| `uruguay` \| `saudi_arabia` \| `unclear`); Noul `explicit_geo_cue`; Score `locale_signal` | Write the catalogue yourself. |
+| `computer_use_step` | required `goal`, `app_or_url`, `observation_summary`, `items[]` (`id`,`role`,`label` + optional `name`,`value`,`state`,`region`,`source`); optional `focused_field`, `offscreen_items[]`, `history[]` (`action`,`target`,`result`), `flags.modal_open` / `loading` / `login_required` / `keyboard_visible` / `irreversible_ahead` | Choice `operation` (`click_item` \| `type_text` \| `type_email` \| `press_enter` \| `press_escape` \| `scroll_up` \| `scroll_down` \| `use_browser` \| `press_offscreen` \| `wait` \| `done` \| `none`); Choices `click_target` / `type_target` / `offscreen_target` (from catalogs); Nouls `goal_achieved` / `observation_stale`; Score `step_confidence`; additive `guidance` | Observe, click/type/scroll, writer LLM for text, stop. No screenshots in state. |
+| `model_router` | required `user_request`; optional `agent_so_far`, `available_tools`, `files_in_scope`, `last_error`, `flags.has_uncommitted_diff` / `prior_tool_failure` / `user_waiting` | Choice `route` (`fast_local` \| `strong_reasoner` \| `tools_heavy` \| `ask_user` \| `skip`); Nouls `needs_code_edit` / `needs_browser` / `unsafe_or_irreversible` / `simple_lookup`; Score `difficulty` | Map the lane. Thresholds in your code. |
+| `review_diff` | required `diff_summary`, `files`; optional `title`, `intent`, `flags.touches_auth` / `touches_public_api` / `missing_tests_heuristic` | Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`; Choice `hotspot_file` (from `files[]`); Score `severity` | Gate and comments in caller code. |
+| `code_audit` | Mode A: `path` + optional `language`, `role_hint`, `signals` (`loc`, `import_count`, `top_imports` max 8, `has_tests_nearby`, `touches_money`, `touches_auth`, `is_generated`, `complexity_heuristic`), `repo_context` (max 280), Pass 2 `excerpt` (max 1200). Mode B: `files[]` + `batch_notes` (max 400). `path` wins if both set. | Nouls `wrong_layer` / `blast_radius` / `missing_verification` / `secret_or_credential_risk` / `inefficiency` / `dead_or_premature_abstraction`; Scores `problem_severity` + `change_cost`; Choice `primary_concern` (`none` \| `layering` \| `blast_radius` \| `verification` \| `security` \| `performance` \| `abstraction` \| `other`); Mode B adds Choice `hotspot_file` | Pass 1 signals-only (~RTT, N workers). Pass 2 short excerpt on top-N. `gateCodeAudit` in code. |
+| `skill_router` | required `user_request`, `available_skills`; optional `agent_so_far` | Noul `needs_skill`; Choice `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. |
+| `command_risk` | required `command`; optional `cwd`, `reason`, `allowed_roots` | Nouls `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. |
 
 ## Required workflow
 
@@ -285,6 +314,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 | `MCP_JEV_CONFIG` | Alias for `MCP_JEV_HOME` |
 | `MCP_JEV_CHECKOUT` | Git checkout (default `~/mcp_jev`) |
 | `MCP_JEV_WRITE_HOSTS` | Optional install-time host write |
+| `MCP_JEV_SYNC_SKILL` | If `1`, `install.sh` / `update.sh` copy `skills/mcp_jev` into an **existing** `$REPO_HOME/.cursor/skills` or `~/.cursor/skills` |
 | `TYPESAFE_BASE_URL` / `JEV_MODEL` / `TYPESAFE_DEFAULT_MODEL` | Optional |
 
 The user store wins; process env is fallback only. Repo `.env` is not auto-loaded.

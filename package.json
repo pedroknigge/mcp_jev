@@ -22,6 +22,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
+    "sync-skill-catalog": "tsx scripts/sync-skill-catalog.ts",
     "prepare": "npm run build",
     "prepublishOnly": "npm run typecheck && npm run build && npm test"
   },

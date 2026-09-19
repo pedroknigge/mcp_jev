@@ -15,6 +15,7 @@ Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [do
 - [First-run](#first-run)
 - [Recipes](#recipes)
 - [Update](#update)
+- [Skill stays in sync](#skill-stays-in-sync)
 - [Say this to your agent](#say-this-to-your-agent)
 - [Install for agents & IDEs](#install-for-agents--ides)
 - [Tools](#tools-closed-catalog)
@@ -242,7 +243,22 @@ Optional Mode B: one call with `files[]` (paths only) + short `batch_notes` — 
 # Windows: ~\mcp_jev\scripts\update.ps1
 ```
 
-Restart the MCP host. That is the whole update.
+Restart the MCP host. Then **reload the skill** (hosts do not auto-reload it):
+
+```bash
+npx skills add pedroknigge/mcp_jev --skill mcp_jev
+# or: cp -R ~/mcp_jev/skills/mcp_jev .cursor/skills/mcp_jev
+```
+
+## Skill stays in sync
+
+The agent skill lives in-repo at [`skills/mcp_jev/SKILL.md`](skills/mcp_jev/SKILL.md). `scripts/update.sh` pulls that folder with the rest of the checkout; **hosts still need a re-add or copy**.
+
+- Re-add: `npx skills add pedroknigge/mcp_jev --skill mcp_jev`
+- Or copy: `cp -R skills/mcp_jev .cursor/skills/mcp_jev` (only into a project you mean to update)
+- Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cursor/skills` or `~/.cursor/skills` if that directory already exists
+
+Exact pack ids / question ids / state fields: [`skills/mcp_jev/references/pack-catalog.md`](skills/mcp_jev/references/pack-catalog.md) (generated from `src/packs/`). `npm test` fails if a new pack or question id is missing from the skill or that catalog.
 
 ## Say this to your agent
 
@@ -346,7 +362,7 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 | --- | --- | --- |
 | `pr_audit` | `merge_risk` (safe_ui \| needs_review \| block), Nouls money / hours / hours_money_boundary / migration, Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. Jev does not merge or comment |
 | `review_diff` | Nouls correctness / security / reliability / compat / test_gap; Choice `hotspot_file` from `files[]`; Score `severity` | Orchestration stays in the caller |
-| `code_audit` | Per-file Nouls layering / blast-radius / verification / secrets / inefficiency / abstraction; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Pass 1: signals-only, ~RTT per file, N workers. Pass 2: short excerpt on top-N. Aggregate + `gateCodeAudit` in code |
+| `code_audit` | Nouls `wrong_layer` / `blast_radius` / `missing_verification` / `secret_or_credential_risk` / `inefficiency` / `dead_or_premature_abstraction`; Scores `problem_severity` + `change_cost`; Choice `primary_concern` | Pass 1: signals-only, ~RTT per file, N workers. Pass 2: short excerpt on top-N. Aggregate + `gateCodeAudit` in code |
 | `skill_router` | Noul `needs_skill`; Choice `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. Thresholds in your code |
 | `command_risk` | Nouls `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. Signals only |
 | `intent_router` | Closed intent Choice, jailbreak + policy Nouls, urgency Score | Route / refuse / hand off in code |
@@ -383,6 +399,7 @@ flowchart LR
 | `MCP_JEV_CONFIG` | No | Alias for `MCP_JEV_HOME` |
 | `MCP_JEV_CHECKOUT` | No | Git checkout (default `~/mcp_jev` or the repo you ran the script from) |
 | `MCP_JEV_WRITE_HOSTS` | No | Install-time host write (`all` or comma list) |
+| `MCP_JEV_SYNC_SKILL` | No | If `1`, install/update copy `skills/mcp_jev` into an existing `.cursor/skills` dir |
 
 Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.
 
