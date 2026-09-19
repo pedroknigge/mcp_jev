@@ -45,6 +45,12 @@ export type PackDefinition = {
   state_schema: JsonSchema;
   example_state: Record<string, unknown>;
   questions: PackQuestion[];
+  /**
+   * Optional. When set, `run_pack` builds questions from the validated state
+   * (e.g. Choice options from `items[].id`). `describe_pack` still returns
+   * the static `questions` template.
+   */
+  questionsForState?: (state: Record<string, unknown>) => PackQuestion[];
   suggested_workflow: string[];
   notes: string[];
 };

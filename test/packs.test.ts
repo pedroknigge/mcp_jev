@@ -4,10 +4,16 @@ import { test } from "node:test";
 import { allPacks, getPack, listPacks, packCount, questionsFor } from "../src/packs/index.js";
 import { validatePackState } from "../src/validate.js";
 
-test("pack registry loads the three starter packs", () => {
+test("pack registry loads the starter packs", () => {
   const ids = listPacks().map((pack) => pack.id).sort();
-  assert.deepEqual(ids, ["intent_router", "locale_country", "pr_audit"]);
-  assert.equal(packCount(), 3);
+  assert.deepEqual(ids, [
+    "computer_use_step",
+    "intent_router",
+    "locale_country",
+    "model_router",
+    "pr_audit",
+  ]);
+  assert.equal(packCount(), 5);
 });
 
 test("each pack has versioned metadata, schema, example, and questions", () => {
@@ -35,7 +41,7 @@ test("each pack has versioned metadata, schema, example, and questions", () => {
       }
     }
 
-    const sdkQuestions = questionsFor(pack);
+    const sdkQuestions = questionsFor(pack, pack.example_state);
     assert.deepEqual(Object.keys(sdkQuestions).sort(), ids.sort());
     for (const question of pack.questions) {
       assert.equal(sdkQuestions[question.id]?.type, question.type);
@@ -58,6 +64,8 @@ test("pr_audit documents that code_gate is caller-owned", () => {
   ]);
   assert.ok(!questionIds.includes("code_gate"));
   assert.ok(pack.notes.some((note) => note.includes("code_gate is computed by the caller")));
+  assert.ok(pack.summary.includes("Staged review"));
+  assert.ok(pack.when_to_use.includes("staged review"));
 });
 
 test("unknown pack_id is a clear error", () => {

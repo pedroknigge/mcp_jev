@@ -11,7 +11,7 @@ import { getPack } from "../src/packs/registry.js";
 test("list_packs returns summaries only", () => {
   const result = handleListPacks();
   const packs = result.packs as Array<Record<string, unknown>>;
-  assert.equal(packs.length, 3);
+  assert.equal(packs.length, 5);
   assert.ok(packs[0] && "when_to_use" in packs[0]);
   assert.ok(packs[0] && !("questions" in packs[0]));
 });
@@ -20,9 +20,28 @@ test("describe_pack returns full schema and workflow", () => {
   const described = handleDescribePack("intent_router");
   assert.equal(described.id, "intent_router");
   assert.ok(Array.isArray(described.questions));
+  assert.equal(described.dynamic_choice_from_state, false);
   assert.ok(described.state_schema);
   assert.ok(described.example_state);
   assert.ok(Array.isArray(described.suggested_workflow));
+});
+
+test("describe_pack marks computer_use_step as building Choice options from state", () => {
+  const described = handleDescribePack("computer_use_step");
+  assert.equal(described.dynamic_choice_from_state, true);
+  const questions = described.questions as Array<{ id: string }>;
+  assert.deepEqual(
+    questions.map((question) => question.id),
+    [
+      "operation",
+      "click_target",
+      "type_target",
+      "offscreen_target",
+      "goal_achieved",
+      "observation_stale",
+      "step_confidence",
+    ],
+  );
 });
 
 test("ping reports sdk version and never includes the key", () => {

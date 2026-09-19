@@ -23,7 +23,7 @@ The script stores `TYPESAFE_API_KEY` **once** in `~/.mcp_jev/.env` (chmod 600). 
 }
 ```
 
-`MCP_JEV_HOME` (default `~/.mcp_jev`) is the **user config dir** (key + wrapper). Checkout defaults to `~/mcp_jev`, or the repo you ran the script from (Pedro Desktop example: `cd /Users/pedroknigge/Desktop/mcp_jev && ./scripts/install.sh`). Optional `MCP_JEV_CHECKOUT` overrides the clone path. `MCP_JEV_CONFIG` is an alias for `MCP_JEV_HOME`.
+`MCP_JEV_HOME` (default `~/.mcp_jev`) is the **user config dir** (key + wrapper). Checkout defaults to `~/mcp_jev`, or the repo you ran the script from (`cd $HOME/mcp_jev && ./scripts/install.sh`). Optional `MCP_JEV_CHECKOUT` overrides the clone path. `MCP_JEV_CONFIG` is an alias for `MCP_JEV_HOME`.
 
 Update: `~/mcp_jev/scripts/update.sh` — pull + build; **does not** touch the key. Restart the host.
 

@@ -24,6 +24,7 @@ export function handleDescribePack(packId: string): ToolJson {
     when_to_use: pack.when_to_use,
     state_schema: pack.state_schema,
     questions: pack.questions,
+    dynamic_choice_from_state: Boolean(pack.questionsForState),
     example_state: pack.example_state,
     suggested_workflow: pack.suggested_workflow,
     notes: pack.notes,
@@ -64,7 +65,7 @@ export async function handleRunPack(
 
   const result = await deps.systemOne({
     state: input.state,
-    questions: questionsFor(pack),
+    questions: questionsFor(pack, input.state),
     model: deps.config.model,
   });
 

@@ -5,9 +5,9 @@ export const prAuditPack: PackDefinition = {
   version: "1.0.0",
   title: "PR audit",
   summary:
-    "Typed merge-risk judgment for a pull request: Choice merge_risk, Nouls for money/hours/boundary/migration, Score blast_radius.",
+    "Typed merge-risk judgment for a pull request. Staged review: risk Nouls (money/hours/boundary/migration) → closed-catalog file Choice from `files[]` in caller code → severity Score `blast_radius` (plus Choice `merge_risk`).",
   when_to_use:
-    "Before merging or auto-approving a PR when you need calibrated risk signals. Use when the change might touch money, tracked hours, or a migration. Do not use Jev to write the review comment or to compute the final gate.",
+    "Before merging or auto-approving a PR when you need calibrated risk signals. Use as a staged review workflow: gate on the risk Nouls first, then pick a hottest file from your closed `files[]` catalog in code if you need a file-level follow-up, then read `blast_radius` as severity. `merge_risk` stays the pack's merge Choice (not renamed). Do not use Jev to write the review comment or to compute the final gate.",
   state_schema: {
     type: "object",
     additionalProperties: false,
@@ -135,11 +135,12 @@ export const prAuditPack: PackDefinition = {
     "Collect title, body, changed paths, and a short diff_summary in code. Do not dump a full mega-diff into state.",
     "Optionally set flags from path heuristics (billing/, migrations/, timesheet/) before the call.",
     "Call list_packs / describe_pack once if you have not used pr_audit in this session, then run_pack.",
-    "Read merge_risk.choice, the four Noul probabilities, blast_radius.score, and Choice/Score confidence.",
+    "Stage in code: (1) risk Nouls — money, hours, hours_money_boundary, migration; (2) if you need a file-level follow-up, Choice among the closed `files[]` catalog you already passed (this pack does not invent paths); (3) severity via blast_radius.score. Read merge_risk.choice in the same snap.",
     "Compute code_gate in the caller. Jev does not return code_gate and must not be asked for it through this MCP.",
     "Apply side effects (block merge, request review, post a comment) in your code or host tools — never inside mcp_jev.",
   ],
   notes: [
+    "Staged review is caller-owned: risk Nouls → file Choice over `files[]` → severity Score. This pack already fans out the Nouls, merge_risk, and blast_radius in one systemOne call; compose the file Choice in your code from the same `files[]` list (closed catalog).",
     "code_gate is computed by the caller, not Jev. Example: block if merge_risk is block, or money.noul is high, or hours_money_boundary.noul is high, or migration.noul is high with blast_radius.score >= 2. Tune thresholds on your own data.",
     "Noul answers have no separate confidence field — the probability is the belief.",
     "Choice and Score include probabilities plus confidence (how peaked the distribution is).",
