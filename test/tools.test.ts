@@ -33,6 +33,7 @@ test("ping reports sdk version and never includes the key", () => {
   const ping = handlePing(config);
   const serialized = JSON.stringify(ping);
   assert.equal(ping.api_key_set, true);
+  assert.equal(ping.api_key_source, "env");
   assert.equal(ping.sdk_version, SDK_VERSION);
   assert.ok(typeof ping.packs === "number");
   assert.ok(!serialized.includes("sk-test-should-not-leak"));

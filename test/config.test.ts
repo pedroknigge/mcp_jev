@@ -10,6 +10,7 @@ test("JEV_MODEL wins over TYPESAFE_DEFAULT_MODEL", () => {
   });
   assert.equal(config.model, "jev-custom");
   assert.equal(config.apiKeySet, false);
+  assert.equal(config.apiKeySource, "none");
 });
 
 test("whitespace-only API key is treated as missing", () => {

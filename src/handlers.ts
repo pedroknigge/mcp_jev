@@ -38,6 +38,8 @@ export function handlePing(config: AppConfig): ToolJson {
     sdk_version: SDK_VERSION,
     packs: packCount(),
     api_key_set: config.apiKeySet,
+    api_key_source: config.apiKeySource,
+    user_config_dir: config.userConfigDir,
     model: config.model,
     base_url_override: Boolean(config.baseURL),
   };
