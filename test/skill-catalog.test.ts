@@ -139,6 +139,10 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(skill, /invent typed Choice \/ Noul \/ Score questions \*\*before\*\*/i);
   assert.match(skill, /i18n via `run_questions`/);
   assert.match(skill, /needs_locale_split/);
+  assert.match(skill, /Model route via `run_questions`/);
+  assert.match(skill, /needs_shell_tools/);
+  assert.match(skill, /irreversible_side_effect/);
+  assert.match(skill, /tools_cascade/);
   assert.match(skill, /DOGFOOD\.md/);
   assert.match(skill, /before 255/);
   assert.match(skill, /turn start/);
@@ -154,6 +158,7 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(readme, /is_breaking_for_callers/);
   assert.match(readme, /i18n via `run_questions`/);
   assert.match(readme, /needs_locale_split/);
+  assert.match(readme, /model route via `run_questions`/i);
   assert.match(readme, /DOGFOOD\.md/);
   assert.match(readme, /before 255/);
   assert.match(readme, /turn start/);
@@ -173,6 +178,10 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(custom, /write me a review/i);
   assert.match(custom, /## Recipe: i18n via `run_questions`/);
   assert.match(custom, /needs_locale_split/);
+  assert.match(custom, /## Recipe: model route via `run_questions`/);
+  assert.match(custom, /needs_shell_tools/);
+  assert.match(custom, /irreversible_side_effect/);
+  assert.match(custom, /tools_cascade/);
   assert.match(custom, /DOGFOOD\.md/);
   assert.doesNotMatch(custom, /## Example: i18n hardcoded copy/);
 });
@@ -188,6 +197,8 @@ test("DOGFOOD.md teaches invent-before-list_packs and equal i18n recipes", () =>
   assert.match(dogfood, /needs_locale_split/);
   assert.match(dogfood, /computer_use_step/);
   assert.match(dogfood, /model_router/);
+  assert.match(dogfood, /needs_shell_tools/);
+  assert.match(dogfood, /run_questions/);
   assert.match(dogfood, /effective_targets/);
   assert.match(dogfood, /turn start/);
   assert.match(dogfood, /blind-i18n-example/);

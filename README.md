@@ -150,7 +150,7 @@ Default `smoke:packs` injects the same mocked `systemOne` pattern as `npm test` 
 
 **Packs are shortcuts.** Same `systemOne` path as `run_pack`. Not “write me a review”. After a pattern repeats 2–3 times, upstream a named pack.
 
-Blind dogfood: invent typed questions **before** opening the pack list; use a pack only if it matches exactly — [docs/DOGFOOD.md](docs/DOGFOOD.md).
+Blind dogfood: invent typed questions **before** opening the pack list; use a pack only if it matches exactly — [docs/DOGFOOD.md](docs/DOGFOOD.md). Model-lane cascades with **custom** option ids → [model route via `run_questions`](docs/CUSTOM_JUDGMENTS.md#recipe-model-route-via-run_questions) (do not stretch `model_router`).
 
 Example (public-API / changelog break — no pack): state `{ path, change_summary, symbols:[{id,kind,note}] }` + Noul `is_breaking_for_callers` + Score `doc_debt` + Choice `hottest_symbol` over symbol ids plus `none`. Full recipe: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md).
 

@@ -160,12 +160,74 @@ Runnable: `node --import tsx scripts/blind-i18n-example.mjs` (mocked in CI; `--l
 
 Then extract or split **in your code**. Example gate for the shared Nouls/Score: `gateI18nCopy` in `src/policy-examples.ts`.
 
+## Recipe: model route via `run_questions`
+
+Equal prominence to `run_pack` `model_router` when invented lanes or Noul heads **do not** match the pack. Pack shortcut only for `fast_local` | `strong_reasoner` | `tools_heavy` | `ask_user` | `skip` plus Nouls `needs_code_edit` / `needs_browser` / `unsafe_or_irreversible` / `simple_lookup` and Score `difficulty`. Host-specific cascades (extra lanes, different Noul ids) → stay here.
+
+```json
+{
+  "state": {
+    "turn_id": "t1",
+    "user_ask": "Refactor auth middleware across 4 files, run integration tests, push if green.",
+    "context_summary": "Multi-file TypeScript change with git push; host has shell + editor tools.",
+    "available_tools": ["read", "edit", "shell", "git"],
+    "estimated_tokens_in_context": 18000,
+    "prior_failures": 0
+  },
+  "questions": [
+    {
+      "id": "route",
+      "type": "choice",
+      "instructions": "Given `user_ask`, `context_summary`, and `available_tools`, which compute lane should the harness pick for this turn?",
+      "criteria": {
+        "cheap_local": "Trivial lookup or formatting; local/fast model enough.",
+        "strong_reason": "Multi-step reasoning or careful refactor without heavy tool chaining.",
+        "tools_cascade": "Needs several tool rounds (edit + shell + verify) in one turn.",
+        "ask_human": "Ambiguous goal or irreversible risk; ask the user before acting.",
+        "skip_turn": "Out of scope or already done; do nothing."
+      }
+    },
+    {
+      "id": "needs_shell_tools",
+      "type": "noul",
+      "instructions": "Does completing `user_ask` require shell/git tools from `available_tools` (not just read/edit)?",
+      "criteria": {
+        "true": "Shell, tests, or git push are required to finish the ask.",
+        "false": "Read/edit alone would suffice."
+      }
+    },
+    {
+      "id": "irreversible_side_effect",
+      "type": "noul",
+      "instructions": "Would following `user_ask` risk an irreversible remote side effect (e.g. push, deploy, delete)?",
+      "criteria": {
+        "true": "Remote push/deploy/delete or similar is in scope.",
+        "false": "Only local edits/tests; reversible."
+      }
+    },
+    {
+      "id": "difficulty",
+      "type": "score",
+      "instructions": "How hard is this turn given `user_ask` and `estimated_tokens_in_context`?",
+      "criteria": [
+        "Trivial single-step.",
+        "Moderate: a few files or light reasoning.",
+        "Hard: multi-file + tools + judgment.",
+        "Extreme: high blast radius or long horizon."
+      ]
+    }
+  ]
+}
+```
+
+Map the lane and any confirm/refuse gate **in your code**. After the same custom pattern repeats 2–3 times, consider extending `model_router` or keeping the recipe (see BL-002 / BL-003).
+
 ## Anti-patterns
 
 - Free-form “write me a review”
 - Open-ended options (“anything else”, empty Choice maps, one option)
 - Dumping the whole repo (or a tree of file bodies) into `state`
 - Stopping because `list_packs` had no match
-- Stretching a nearby pack when invented questions do not match exactly (`i18n_copy` is a shortcut only for its exact heads)
+- Stretching a nearby pack when invented questions do not match exactly (`i18n_copy` / `model_router` are shortcuts only for their exact heads)
 - Opening the pack list before inventing questions on a **blind** dogfood
 - Calling TypeSafe when `ping.api_key_set` is false
