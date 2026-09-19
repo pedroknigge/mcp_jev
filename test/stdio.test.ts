@@ -31,7 +31,7 @@ test("stdio MCP exposes the closed tool catalog and answers ping", async () => {
     assert.ok(text && text.type === "text");
     const body = JSON.parse(text.text) as { server: string; api_key_set: boolean; packs: number };
     assert.equal(body.server, "mcp_jev");
-    assert.equal(body.packs, 5);
+    assert.equal(body.packs, 8);
     assert.equal(typeof body.api_key_set, "boolean");
   } finally {
     await client.close();

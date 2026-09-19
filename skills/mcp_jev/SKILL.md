@@ -3,52 +3,73 @@ name: mcp_jev
 description: >
   Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
-  mcp_jev, Jev, TypeSafe, install/update this MCP, PR audit, intent routing,
-  locale/country, computer-use / GUI / browser / mobile harness, model router,
-  Cursor, Claude, Codex, Grok, or Antigravity. If tools are
-  absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
+  mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, PR audit, review
+  diff, intent routing, locale/country, computer-use / GUI / browser / mobile
+  harness, model router, Cursor, Claude, Codex, Grok, or Antigravity. If tools
+  are absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
   Always list_packs → describe_pack → run_pack. No ask_jev, no free-form
   questions, no side effects, never paste TYPESAFE_API_KEY into chat.
 ---
 
 # mcp_jev — run Jev packs, do not chat
 
-**Jev is not an LLM chat model.** TypeSafe System One (flagship: Jev) takes **state + typed questions** and returns **Choice / Noul / Score** answers. This MCP **only runs versioned packs** from the mcp_jev repo. Side effects stay in your code.
+**Jev is not an LLM chat model.** TypeSafe System One (flagship: Jev) takes **state + typed questions** and returns **Choice / Noul / Score** answers. This MCP **only runs versioned packs** from the mcp_jev repo. Side effects stay in your code. mcp_jev is the judgment layer: fast typed decisions for agents and harnesses.
 
 **Latest install/config source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) (README + `scripts/`). TypeSafe API docs: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Host extras: [`references/install.md`](references/install.md).
 
+## First-run script
+
+Do this in order. Do not skip `doctor`.
+
+```bash
+# 1) Install (key once in ~/.mcp_jev/.env; host command stays keyless)
+git clone https://github.com/pedroknigge/mcp_jev.git ~/mcp_jev
+~/mcp_jev/scripts/install.sh          # Windows: install.ps1
+# Non-interactive without a key exits non-zero and writes ~/.mcp_jev/NOT_READY.
+
+# 2) Doctor — checkout, dist, wrapper, api_key_set (boolean only), host files
+mcp_jev doctor
+# or: node ~/mcp_jev/dist/index.js doctor --json
+
+# 3) Optional stdio smoke (no TypeSafe call)
+~/mcp_jev/scripts/verify-mcp.sh
+
+# 4) On the MCP host after restart:
+#    ping → list_packs → describe_pack → run_pack
+```
+
+If `doctor` is not ready: `mcp_jev config set-key`, then doctor again. Never paste the key into chat or host JSON.
+
 ## If the MCP is missing
 
-Do **not** invent `ask_jev` or pretend Jev ran. Tell the user to install from the GitHub repo:
+Do **not** invent `ask_jev` or pretend Jev ran. Tell the user to install from the GitHub repo (first-run script above).
 
 1. **Skill** (so the next session knows the contract):
    ```bash
    npx skills add pedroknigge/mcp_jev --skill mcp_jev
    # or: cp -R skills/mcp_jev .cursor/skills/mcp_jev   # also .claude/skills
    ```
-2. **Server** (happy path):
-   ```bash
-   git clone https://github.com/pedroknigge/mcp_jev.git ~/mcp_jev
-   ~/mcp_jev/scripts/install.sh          # Windows: install.ps1
-   ```
-   The script builds the server, stores **one** TypeSafe key in `~/.mcp_jev/.env` (chmod 600), and prints a **keyless** MCP JSON snippet.
-3. **Host config:** paste that snippet (Cursor `~/.cursor/mcp.json`, Claude Desktop `claude_desktop_config.json`, …). Do not put the key in the JSON.
+2. **Server:** `scripts/install.sh` stores **one** TypeSafe key in `~/.mcp_jev/.env` (chmod 600) and prints **keyless** snippets.
+3. **Host config:** paste or `mcp_jev hosts write all`. Command = `~/.mcp_jev/bin/mcp_jev`.
 4. Restart the host. Call **`ping`**, then **`list_packs`**.
 
 Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host.
 
 ### Say this to your agent
 
-> Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using the install script and skill.
+> Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using the install script and skill. Then run doctor, ping, and list_packs.
 
 ## When to use mcp_jev
 
 | Need | Use |
 | --- | --- |
-| MCP tools missing / first-time setup / update | Install script + this skill + GitHub README |
-| A judgment that exists as a pack (`pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, or later in-repo ids) | **mcp_jev** tools |
-| Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — see below |
-| Which model / tool lane this turn | **`model_router`** — thresholds in your code |
+| MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
+| A judgment that exists as a pack (`pr_audit`, `review_diff`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, or later in-repo ids) | **mcp_jev** tools |
+| Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
+| Which model / tool lane this turn | **`model_router`** — recipe below |
+| Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
+| Closed skill list → load one or none | **`skill_router`** |
+| Proposed shell command risk signals | **`command_risk`** — allowlist still required |
 | Designing new TypeSafe questions / SDK code | Official **TypeSafe skill** (`npx skills add typesafe-ai/skills --skill typesafe-ai`) |
 | Prose, patches, reasoning, typed-in text | A **plain LLM** (you) |
 | Merge, comment, refund, catalogue write, clicks | **Your code / other MCPs** after typed answers |
@@ -57,15 +78,75 @@ Update later: `~/mcp_jev/scripts/update.sh` (preserves the key) → restart host
 
 | Situation | Pack | Not this |
 | --- | --- | --- |
-| Structured screen state (OCR / AX / DOM ids) → one next click/type/scroll/wait/done | `computer_use_step` | Do not send screenshots. Do not use `intent_router` (that is for utterances) or `model_router` (that is for compute lanes). |
+| Structured screen state (OCR / AX / DOM ids) → one next click/type/scroll/wait/done | `computer_use_step` | Do not send screenshots. Do not use `intent_router` (utterances) or `model_router` (compute lanes). |
 | Start of an agent turn: cheap local vs strong reasoner vs tool loop vs ask the user vs skip | `model_router` | Do not use it to drive the GUI or to classify a chat intent. |
 | Incoming user message → FAQ / action / handoff / refuse | `intent_router` | Not a screen catalog. Not a PR. |
-| Pull request merge risk, staged as risk Nouls → file Choice over `files[]` → severity Score | `pr_audit` | Jev does not write the review or compute `code_gate`. |
+| Generic diff: risk Nouls → hotspot file from `files[]` → severity | `review_diff` | Orchestration stays in the caller. Not `pr_audit` (money/hours/migration). |
+| Pull request merge risk (money / hours / migration) | `pr_audit` | Jev does not write the review or compute `code_gate`. |
 | Catalogue SKU → one of five countries | `locale_country` | Not a geocoder for people or addresses. |
-
-`computer_use_step` loop: observe in code → `run_pack` → execute only the chosen `operation` + matching target → writer LLM only for `type_text` / `type_email` → stop rules in the harness. Jev never sees pixels.
+| Closed skill names → load one or none | `skill_router` | Not a model lane. Not a GUI step. |
+| Proposed shell command → risk signals | `command_risk` | Not an allowlist. Sandbox still required. |
 
 If the user wants a question that is not in a pack, say this server cannot do that. Offer a new in-repo pack (`CONTRIBUTING.md`) or the TypeSafe SDK.
+
+## Recipe: `computer_use_step`
+
+Harness contract (enforced):
+
+1. Observe in **code** (OCR, accessibility tree, or DOM). Build an **indexed closed catalog** `items[]` / `offscreen_items[]` with stable ids and `role` / `name` / `value` / `state` / `label`. Never put screenshots, pixels, or image blobs in state.
+2. One `systemOne` fan-out: Choice `operation` plus a separate target Choice per op (`click_target`, `type_target`, `offscreen_target`). Each target question **assumes** its operation (independent). Use ONLY `guidance.target_for[operation]` / `effective_targets`. Ignore the other heads.
+3. For `type_text` / `type_email`, a **writer LLM** (or stored value) supplies the string. Jev never invents it (`guidance.writer_owns_typed_string`).
+4. `max_steps` and `max_candidates` are harness stop rules, not MCP side effects. Example thresholds: stop if `goal_achieved.noul ≥ 0.8` or `operation` is `done`; re-observe if `observation_stale.noul ≥ 0.65` or `step_confidence.score < 1.5`.
+
+## Recipe: `model_router`
+
+Closed lanes — do not invent a sixth:
+
+| Lane | Meaning |
+| --- | --- |
+| `fast_local` | Cheap/local or no model: lookup, format, one obvious tool |
+| `strong_reasoner` | Ambiguous design, hard failure, plan not yet mechanical |
+| `tools_heavy` | Long tool / browser / shell loop |
+| `ask_user` | Missing preference, secret, or confirmation |
+| `skip` | Already done, blocked, or out of scope |
+
+Example thresholds (caller-owned): `route.confidence < 0.45` → treat as `ask_user`; `unsafe_or_irreversible.noul ≥ 0.70` → refuse or confirm; `simple_lookup.noul ≥ 0.75` and `difficulty.score < 1.5` → force `fast_local`.
+
+## Recipe: `review_diff`
+
+1. Collect a short `diff_summary` and closed `files[]` in code. No mega-diff.
+2. `run_pack` `review_diff`.
+3. Read Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`, then `hotspot_file.choice` (only from `files[]`), then `severity.score`.
+4. Compose the gate and any comment **in the caller**. Example: request review if any Noul ≥ 0.65; block if `security.noul ≥ 0.75` or `severity.score ≥ 2.5`.
+
+`pr_audit` is the separate money/hours/migration merge pack. Keep both ids.
+
+## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`)
+
+Jev returns signals. **Your functions** decide. Unit-test those functions without a TypeSafe key (`src/policy-examples.ts`).
+
+`skill_router`: Noul `needs_skill` + Choice `skill` from closed `available_skills[]` + Score `change_risk`. Load the skill in the host.
+
+`command_risk`: Nouls `is_destructive` / `touches_credentials` / `scope_matches` + Score `severity`. **Signals only.** Your allowlist and sandbox still run.
+
+`model_router`: model cascade — map `route.choice` to models/tools in code.
+
+Example (copy into the harness): refuse a command if `is_destructive.noul ≥ 0.70` or `scope_matches.noul < 0.50`. Jev does not execute.
+
+## Multi-host
+
+Keyless `command` is always `~/.mcp_jev/bin/mcp_jev` (Windows: `mcp_jev.cmd`).
+
+| Host | Config | Format |
+| --- | --- | --- |
+| Cursor | `~/.cursor/mcp.json` or `.cursor/mcp.json` | JSON `mcpServers` |
+| Claude Desktop | `claude_desktop_config.json` (OS paths in `references/install.md`) | JSON |
+| Claude Code | `claude mcp add …` or `~/.claude.json` | JSON |
+| Codex | `~/.codex/config.toml` | TOML `[mcp_servers.mcp_jev]` |
+| Grok | `~/.grok/config.toml` | TOML |
+| Antigravity | `~/.gemini/config/mcp_config.json` or `.agents/mcp_config.json` | JSON |
+
+`mcp_jev hosts print` · `mcp_jev hosts write all` · `MCP_JEV_WRITE_HOSTS=all ./scripts/install.sh`. `doctor` reports whether those files exist and whether `mcp_jev` is registered (informational).
 
 ## Key is installed once
 
@@ -73,9 +154,10 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 
 ## Verify
 
-1. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 5. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
-2. **`list_packs`** — pick an `id` from the result.
-3. Then `describe_pack` / `run_pack`.
+1. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
+2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 8. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
+3. **`list_packs`** — pick an `id` from the result.
+4. Then `describe_pack` / `run_pack`.
 
 ## Tool contract
 
@@ -102,9 +184,9 @@ Four tools. No others.
 
 - Args: `{ pack_id: string, state: object }`
 - Validates state, calls `TypeSafeClient.systemOne`
-- Returns `{ pack_id, pack_version, model, answers, usage }`
+- Returns `{ pack_id, pack_version, model, answers, usage }` (plus additive `guidance` on `computer_use_step`)
 - No side effects
-- Errors: `missing_api_key`, `invalid_state`, `unknown_pack`, `auth`, `rate_limit`, `timeout`, `connection`, `validation`
+- Errors: `missing_api_key`, `invalid_state` (may include structured `details.missing`), `unknown_pack`, `auth`, `rate_limit`, `timeout`, `connection`, `validation`
 
 Skip `describe_pack` only when you already have that pack's schema in **this** session.
 
@@ -115,14 +197,17 @@ Packs live under `src/packs/` in [pedroknigge/mcp_jev](https://github.com/pedrok
 | id | Jev answers | Caller still does |
 | --- | --- | --- |
 | `pr_audit` | `merge_risk`; Nouls `money` / `hours` / `hours_money_boundary` / `migration`; Score `blast_radius` | Staged review: risk Nouls → file Choice over `files[]` → severity. Compute **`code_gate`**. No merge/comment here. |
+| `review_diff` | Nouls `correctness` / `security` / `reliability` / `compat` / `test_gap`; Choice `hotspot_file`; Score `severity` | Gate and comments in caller code. |
+| `skill_router` | `needs_skill`; `skill` from `available_skills[]`; Score `change_risk` | Load the skill in the host. |
+| `command_risk` | `is_destructive` / `touches_credentials` / `scope_matches`; Score `severity` | Allowlist/sandbox still required. |
 | `intent_router` | `intent`; Nouls `jailbreak` / `policy_violation`; Score `urgency` | Route / refuse in code. |
 | `locale_country` | `country` (AR/US/IN/UY/SA/`unclear`); Noul `explicit_geo_cue`; Score `locale_signal` | Write the catalogue yourself. |
-| `computer_use_step` | `operation`; `click_target` / `type_target` / `offscreen_target` from your item ids; Nouls `goal_achieved` / `observation_stale`; Score `step_confidence` | Observe, click/type/scroll, writer LLM for text, stop. No screenshots in state. |
+| `computer_use_step` | `operation`; targets from your item ids; Nouls `goal_achieved` / `observation_stale`; Score `step_confidence`; `guidance` | Observe, click/type/scroll, writer LLM for text, stop. No screenshots in state. |
 | `model_router` | `route`; Nouls `needs_code_edit` / `needs_browser` / `unsafe_or_irreversible` / `simple_lookup`; Score `difficulty` | Map the lane. Thresholds in your code. |
 
 ## Required workflow
 
-1. If tools missing → install (above)
+1. If tools missing → install + `doctor` (above)
 2. `list_packs` → `describe_pack` → collect short named state → `run_pack`
 3. Compose gates **after** the tool returns
 
@@ -143,9 +228,11 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Assume the MCP is already installed
 - Invent `ask_jev` or free-form questions
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
-- Ask Jev for `code_gate` on `pr_audit`
+- Treat non-interactive install without a key as success (`NOT_READY` / doctor must fail)
+- Ask Jev for `code_gate` on `pr_audit` or `review_diff`
 - Put screenshots or image blobs in `computer_use_step` state
-- Invent item ids that were not in the closed `items[]` catalog
+- Act on speculative targets that do not match `operation`
+- Invent item ids or file paths that were not in the closed catalog
 - Retry `invalid_state` by guessing fields
 - Call `run_pack` when `api_key_set` is false
 
@@ -157,6 +244,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 | `MCP_JEV_HOME` | User config dir (default `~/.mcp_jev`) — key + wrapper |
 | `MCP_JEV_CONFIG` | Alias for `MCP_JEV_HOME` |
 | `MCP_JEV_CHECKOUT` | Git checkout (default `~/mcp_jev`) |
+| `MCP_JEV_WRITE_HOSTS` | Optional install-time host write |
 | `TYPESAFE_BASE_URL` / `JEV_MODEL` / `TYPESAFE_DEFAULT_MODEL` | Optional |
 
 The user store wins; process env is fallback only. Repo `.env` is not auto-loaded.

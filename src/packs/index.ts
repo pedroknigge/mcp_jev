@@ -5,6 +5,8 @@ export {
   formatCatalogItem,
   MAX_CHOICE_OPTIONS,
   NONE_OPTION,
+  readStringCatalog,
+  stringCatalogChoiceCriteria,
   UNAVAILABLE_OPTION,
 } from "./catalog-choice.js";
 export type { PackDefinition, PackQuestion, PackSummary } from "./types.js";

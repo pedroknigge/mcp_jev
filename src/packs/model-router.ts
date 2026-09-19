@@ -142,12 +142,14 @@ export const modelRouterPack: PackDefinition = {
     "Put the user request in `user_request`. Add a short `agent_so_far`, tool names you can actually call, and files already in context.",
     "run_pack model_router.",
     "Map `route.choice` in code to your models and tools. Jev does not invoke them.",
-    "Apply thresholds in caller code (same idea as confidence gating): e.g. if route.confidence is low, treat as ask_user; if unsafe_or_irreversible.noul is high, refuse or confirm before tools_heavy / strong_reasoner; if simple_lookup.noul is high and difficulty.score is low, force fast_local.",
+    "Apply thresholds in caller code (same idea as confidence gating). Example starting point below — tune on your traces.",
     "needs_code_edit / needs_browser are hints for which tools to enable, not a license to skip your own allowlists.",
   ],
   notes: [
-    "Thresholds live in caller code, not in this MCP. Tune on your own traces.",
-    "Compose with other packs: use model_router first, then intent_router for an utterance, computer_use_step for a GUI catalog, or pr_audit for a diff.",
+    "Lane semantics (closed catalog — do not invent a sixth lane): fast_local = cheap/local or no model (lookup, format, one obvious tool); strong_reasoner = ambiguous design, hard failure, or a plan that is not yet mechanical; tools_heavy = long tool/browser/shell loop more than a single model burst; ask_user = missing preference, secret, or confirmation (especially irreversible); skip = already done, blocked, or out of scope.",
+    "Example thresholds (caller-owned; tune on your traces): if route.confidence < 0.45 → treat as ask_user; if unsafe_or_irreversible.noul ≥ 0.70 → refuse or confirm before tools_heavy / strong_reasoner; if simple_lookup.noul ≥ 0.75 and difficulty.score < 1.5 → force fast_local; if needs_browser.noul ≥ 0.70 and route is fast_local → consider tools_heavy; if difficulty.score ≥ 2.5 and route is fast_local → consider strong_reasoner.",
+    "Thresholds live in caller code, not in this MCP.",
+    "Compose with other packs: use model_router first, then intent_router for an utterance, computer_use_step for a GUI catalog, review_diff for a generic diff, or pr_audit for a money/hours merge.",
     "Closed route catalog. Fork the pack in-repo if you need another lane name.",
   ],
 };

@@ -1,14 +1,31 @@
 import { ToolError } from "./errors.js";
+import { computerUseMissingHint } from "./packs/computer-use-guidance.js";
 import type { JsonSchema, PackDefinition } from "./packs/types.js";
 
 export function validatePackState(pack: PackDefinition, state: unknown): void {
+  if (pack.enforceState && isPlainObject(state)) {
+    pack.enforceState(state);
+  }
   const errors = validateSchema(pack.state_schema, state, "/");
   if (errors.length === 0) {
     return;
   }
+  const missing = errors
+    .filter((error) => error.endsWith(" is required"))
+    .map((error) => error.replace(/^\/?/, "").replace(/ is required$/, "").replace(/^\//, ""));
+  const details: Record<string, unknown> = {
+    pack_id: pack.id,
+    missing,
+    errors,
+    hint: "Call describe_pack for the JSON Schema and example_state. Do not guess fields.",
+  };
+  if (pack.id === "computer_use_step") {
+    Object.assign(details, computerUseMissingHint());
+  }
   throw new ToolError(
     "invalid_state",
     `State failed validation for pack "${pack.id}": ${errors.join("; ")}. Call describe_pack for the JSON Schema and example_state.`,
+    details,
   );
 }
 

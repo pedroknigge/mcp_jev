@@ -10,17 +10,20 @@ import {
 
 export class ToolError extends Error {
   readonly code: string;
+  readonly details?: Record<string, unknown>;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = "ToolError";
     this.code = code;
+    this.details = details;
   }
 }
 
 export type FriendlyError = {
   code: string;
   message: string;
+  details?: Record<string, unknown>;
 };
 
 export function missingApiKeyError(): ToolError {
@@ -32,7 +35,9 @@ export function missingApiKeyError(): ToolError {
 
 export function toFriendlyError(err: unknown): FriendlyError {
   if (err instanceof ToolError) {
-    return { code: err.code, message: err.message };
+    return err.details
+      ? { code: err.code, message: err.message, details: err.details }
+      : { code: err.code, message: err.message };
   }
   if (err instanceof AuthenticationError) {
     return {

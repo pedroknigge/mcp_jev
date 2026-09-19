@@ -11,7 +11,7 @@ import { getPack } from "../src/packs/registry.js";
 test("list_packs returns summaries only", () => {
   const result = handleListPacks();
   const packs = result.packs as Array<Record<string, unknown>>;
-  assert.equal(packs.length, 5);
+  assert.equal(packs.length, 8);
   assert.ok(packs[0] && "when_to_use" in packs[0]);
   assert.ok(packs[0] && !("questions" in packs[0]));
 });

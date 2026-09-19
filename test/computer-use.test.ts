@@ -14,6 +14,21 @@ import {
 } from "../src/packs/catalog-choice.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
 
+test("computer_use_step target questions name the assumed operation", () => {
+  const pack = getPack("computer_use_step");
+  assert.ok(pack.questionsForState);
+  const questions = pack.questionsForState(pack.example_state);
+  const byId = Object.fromEntries(questions.map((question) => [question.id, question]));
+  assert.match(byId.click_target.instructions, /Assume `operation` is `click_item`/);
+  assert.match(byId.type_target.instructions, /Assume `operation` is `type_text`/);
+  assert.match(byId.offscreen_target.instructions, /Assume `operation` is `press_offscreen`/);
+  const sdk = questionsFor(pack, pack.example_state);
+  assert.equal(sdk.click_target?.type, "choice");
+  if (sdk.click_target?.type === "choice") {
+    assert.ok(String(sdk.click_target.criteria.email).includes("state=focused"));
+  }
+});
+
 test("computer_use_step builds Choice options from item ids", () => {
   const pack = getPack("computer_use_step");
   const questions = questionsFor(pack, pack.example_state);
@@ -127,6 +142,83 @@ test("run_pack sends materialized target ids to the mocked TypeSafe client", asy
 
   assert.equal(result.pack_id, "computer_use_step");
   assert.equal((result.answers as { operation: { choice: string } }).operation.choice, "type_email");
+  const guidance = result.guidance as {
+    apply_type_target: boolean;
+    apply_click_target: boolean;
+    writer_owns_typed_string: boolean;
+    ignore_targets: string[];
+    effective_targets: { type_target: string | null; click_target: string | null };
+  };
+  assert.equal(guidance.apply_type_target, true);
+  assert.equal(guidance.apply_click_target, false);
+  assert.equal(guidance.writer_owns_typed_string, true);
+  assert.ok(guidance.ignore_targets.includes("click_target"));
+  assert.equal(guidance.effective_targets.type_target, "email");
+  assert.equal(guidance.effective_targets.click_target, null);
+  assert.ok(Array.isArray((result.guidance as { harness_hints: string[] }).harness_hints));
+  assert.ok((result.guidance as { harness_hints: string[] }).harness_hints.some((hint) => /writer/i.test(hint)));
+  assert.deepEqual((result.guidance as { target_for: Record<string, string> }).target_for, {
+    click_item: "click_target",
+    type_text: "type_target",
+    type_email: "type_target",
+    press_offscreen: "offscreen_target",
+  });
+});
+
+test("computer_use_step rejects screenshot fields and image blobs", async () => {
+  const config = loadConfig({ TYPESAFE_API_KEY: "test-key" });
+  const pack = getPack("computer_use_step");
+  await assert.rejects(
+    () =>
+      handleRunPack(
+        {
+          pack_id: "computer_use_step",
+          state: { ...pack.example_state, screenshot: "data:image/png;base64,AAAA" },
+        },
+        { config, systemOne: async () => { throw new Error("should not be called"); } },
+      ),
+    (err: unknown) =>
+      err instanceof ToolError &&
+      err.code === "invalid_state" &&
+      /screenshot/.test(err.message) &&
+      Array.isArray(err.details?.forbidden),
+  );
+  await assert.rejects(
+    () =>
+      handleRunPack(
+        {
+          pack_id: "computer_use_step",
+          state: {
+            ...pack.example_state,
+            observation_summary: `data:image/png;base64,${"A".repeat(80)}`,
+          },
+        },
+        { config, systemOne: async () => { throw new Error("should not be called"); } },
+      ),
+    (err: unknown) => err instanceof ToolError && err.code === "invalid_state" && /image\/base64/.test(err.message),
+  );
+});
+
+test("computer_use_step missing fields return structured guidance details", async () => {
+  const config = loadConfig({ TYPESAFE_API_KEY: "test-key" });
+  await assert.rejects(
+    () =>
+      handleRunPack(
+        { pack_id: "computer_use_step", state: { goal: "x" } },
+        { config, systemOne: async () => { throw new Error("should not be called"); } },
+      ),
+    (err: unknown) => {
+      if (!(err instanceof ToolError) || err.code !== "invalid_state") {
+        return false;
+      }
+      const missing = err.details?.missing as string[];
+      assert.ok(missing.includes("app_or_url"));
+      assert.ok(missing.includes("items"));
+      assert.equal(err.details?.screenshots_forbidden, true);
+      assert.equal(err.details?.writer_owns_typed_string, true);
+      return true;
+    },
+  );
 });
 
 test("run_pack rejects reserved item ids before calling TypeSafe", async () => {
@@ -162,6 +254,8 @@ test("model_router example state runs through the mocked client", async () => {
   const described = handleDescribePack("model_router");
   assert.equal(described.dynamic_choice_from_state, false);
   assert.ok(String(described.notes).includes("Thresholds live in caller code"));
+  assert.ok(String(described.notes).includes("fast_local"));
+  assert.ok(String(described.notes).includes("0.45"));
 
   await handleRunPack(
     { pack_id: "model_router", state: pack.example_state },
