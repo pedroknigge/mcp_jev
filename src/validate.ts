@@ -62,6 +62,9 @@ export function validateSchema(schema: JsonSchema, value: unknown, path: string)
     if (schema.minItems !== undefined && value.length < schema.minItems) {
       return [`${path} must have at least ${schema.minItems} items`];
     }
+    if (schema.maxItems !== undefined && value.length > schema.maxItems) {
+      return [`${path} must have at most ${schema.maxItems} items`];
+    }
     if (!schema.items) {
       return [];
     }
@@ -74,6 +77,12 @@ export function validateSchema(schema: JsonSchema, value: unknown, path: string)
     }
     if (schema.minLength !== undefined && value.length < schema.minLength) {
       return [`${path} must be at least ${schema.minLength} characters`];
+    }
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+      return [`${path} must be at most ${schema.maxLength} characters`];
+    }
+    if (schema.enum && !schema.enum.includes(value)) {
+      return [`${path} must be one of: ${schema.enum.join(", ")}`];
     }
     return [];
   }

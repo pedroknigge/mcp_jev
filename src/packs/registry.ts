@@ -3,6 +3,7 @@ import { boundaryCheckPack } from "./boundary-check.js";
 import { codeAuditPack } from "./code-audit.js";
 import { commandRiskPack } from "./command-risk.js";
 import { computerUseStepPack } from "./computer-use-step.js";
+import { i18nCopyPack } from "./i18n-copy.js";
 import { intentRouterPack } from "./intent-router.js";
 import { localeCountryPack } from "./locale-country.js";
 import { modelRouterPack } from "./model-router.js";
@@ -24,6 +25,7 @@ const packs: PackDefinition[] = [
   commandRiskPack,
   verifyGapPack,
   boundaryCheckPack,
+  i18nCopyPack,
 ];
 
 const byId = new Map(packs.map((pack) => [pack.id, pack]));

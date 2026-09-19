@@ -126,7 +126,7 @@ npm run smoke:packs               # ping → list_packs → describe+run every p
 
 On the host, after restart:
 
-1. **`ping`** — `ok`, `packs` ≥ 11, `api_key_set` boolean. Never invent `run_pack` answers if the key is missing.
+1. **`ping`** — `ok`, `packs` ≥ 12, `api_key_set` boolean. Never invent `run_pack` answers if the key is missing.
 2. **`list_packs`** — pick an `id`.
 3. **`describe_pack`** then **`run_pack`**.
 
@@ -202,6 +202,7 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Item / SKU locale from a **caller-supplied** closed country list | `locale_country` |
 | Claimed behavior vs named tests / CI | `verify_gap` |
 | One module’s imports/exports vs layer | `boundary_check` |
+| Hardcoded UI copy vs i18n (`t()` / locale files) | `i18n_copy` |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
 
@@ -272,6 +273,29 @@ Pass 1 state (no body):
 ```
 
 Optional Mode B: one call with `files[]` (paths only) + short `batch_notes` — Choice `hotspot_file` from that closed catalog, no bodies. If `path` is also set, single-file Mode A wins.
+
+### `i18n_copy` (hardcoded UI copy)
+
+Per-file audit of hardcoded strings that should live in an i18n layer. The harness extracts a **closed** `candidates[]` catalog (max ~20). Jev does not rewrite JSX or locale JSON.
+
+Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized` → Score `i18n_debt` (0 clean → 3 blocking for a multi-locale ship) → Choice `hottest_candidate` from `candidates[].id` plus `none` → Choice `primary_bucket` (`ui_copy` | `error_message` | `marketing` | `dev_only` | `mixed` | `none`).
+
+```json
+{
+  "path": "src/components/LoginForm.tsx",
+  "language": "tsx",
+  "framework_i18n": "next-intl",
+  "uses_i18n_api": false,
+  "locale_files_present": true,
+  "candidates": [
+    { "id": "login_heading", "text": "Login", "kind": "jsx_text", "line": 12 },
+    { "id": "submit_btn", "text": "Submit", "kind": "jsx_attr", "line": 40 },
+    { "id": "load_error", "text": "Error loading", "kind": "toast", "line": 55 }
+  ]
+}
+```
+
+Example gate (`src/policy-examples.ts` `gateI18nCopy`): `ok` | `glance` | `block`. Unit-test the gate without a TypeSafe key.
 
 ## Update
 
@@ -408,6 +432,7 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 | `model_router` | `route` (fast_local \| strong_reasoner \| tools_heavy \| ask_user \| skip); Nouls code/browser/unsafe/lookup; Score `difficulty` | Map the lane in code. Thresholds stay in the caller |
 | `verify_gap` | Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`; Score `verification_gap` (0 none → 3 ship-blocker); Choice `next_proof` | Compute **`code_gate`** (`verifyGapCodeGate` → ship \| add_proof \| block). Jev does not write the test |
 | `boundary_check` | Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`; Score `boundary_risk`; Choice `fix` (keep \| extract \| move_layer \| unclear) | Extract / move / keep in caller code |
+| `i18n_copy` | Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized`; Score `i18n_debt` (0 clean → 3 blocking); Choice `hottest_candidate` from `candidates[].id`; Choice `primary_bucket` | Truncate to ~20 candidates. `gateI18nCopy` → `ok` \| `glance` \| `block`. Do not rewrite locale files here |
 
 Packs live in `src/packs/` (in-repo). How to add one: [CONTRIBUTING.md](CONTRIBUTING.md).
 

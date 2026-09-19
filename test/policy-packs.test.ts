@@ -7,7 +7,7 @@ import { loadConfig } from "../src/config.js";
 import { handleDescribePack, handleRunPack } from "../src/handlers.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
 import { NONE_OPTION } from "../src/packs/catalog-choice.js";
-import { commandRiskGate, gateCodeAudit, skillRouterGate, verifyGapCodeGate } from "../src/policy-examples.js";
+import { commandRiskGate, gateCodeAudit, gateI18nCopy, skillRouterGate, verifyGapCodeGate } from "../src/policy-examples.js";
 
 test("skill_router builds skill Choice from available_skills[]", () => {
   const pack = getPack("skill_router");
@@ -144,5 +144,24 @@ test("code-owned policy gates are unit-testable without TypeSafe", () => {
       verification_gap: 1.0,
     }),
     "add_proof",
+  );
+
+  const cleanI18n = {
+    has_user_facing_hardcoded_copy: 0.1,
+    should_migrate_to_i18n: 0.1,
+    already_partially_internationalized: 0.1,
+    i18n_debt: 0.3,
+  };
+  assert.equal(gateI18nCopy(cleanI18n), "ok");
+  assert.equal(gateI18nCopy({ ...cleanI18n, has_user_facing_hardcoded_copy: 0.6, i18n_debt: 1.6 }), "glance");
+  assert.equal(gateI18nCopy({ ...cleanI18n, i18n_debt: 2.7 }), "block");
+  assert.equal(
+    gateI18nCopy({
+      ...cleanI18n,
+      has_user_facing_hardcoded_copy: 0.8,
+      should_migrate_to_i18n: 0.75,
+      i18n_debt: 2.0,
+    }),
+    "block",
   );
 });
