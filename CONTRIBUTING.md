@@ -4,7 +4,7 @@ mcp_jev is a small, local MCP server. Keep the surface closed: **no free-form `a
 
 Live TypeSafe docs are the source of truth for the API: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Do not invent request or response fields.
 
-This repo is the source of truth for **how agents install and call** the four tools: [README.md](README.md), [scripts/install.sh](scripts/install.sh), [scripts/verify-mcp.sh](scripts/verify-mcp.sh), [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md), and [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md). If you add a pack or a tool, update those. Keep `./scripts/install.sh` / `update.sh` as the happy path; do not require the TypeSafe key in every host `mcp.json`. Non-interactive install without a key must write `NOT_READY` and fail; `mcp_jev doctor` must report it.
+This repo is the source of truth for **how agents install and call** the closed tool catalog (`list_packs`, `describe_pack`, `run_pack`, `run_questions`, `ping`): [README.md](README.md), [scripts/install.sh](scripts/install.sh), [scripts/verify-mcp.sh](scripts/verify-mcp.sh), [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md), [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md), and [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md). If you add a pack or a tool, update those. Keep `./scripts/install.sh` / `update.sh` as the happy path; do not require the TypeSafe key in every host `mcp.json`. Non-interactive install without a key must write `NOT_READY` and fail; `mcp_jev doctor` must report it.
 
 ## Setup
 
@@ -40,15 +40,25 @@ A pack must include:
 
 Write questions the way TypeSafe asks: complete meaning in `instructions`, options in `criteria`, backtick paths into state (`title`, `message`). Question IDs are for code; they are not sent to Jev.
 
-Use the JS helpers only through `questionsFor(pack, state)` — that is what `run_pack` sends to `client.systemOne({ state, questions, model })`.
+Use the JS helpers only through `questionsFor(pack, state)` — that is what `run_pack` sends to `client.systemOne({ state, questions, model })`. `run_questions` uses the same helpers after fail-closed validation (`parseCustomRunInput` → `toSdkQuestions`).
 
 If a Choice catalog is not known until `run_pack` (item ids, file paths), set `questionsForState(state)` and build `choice()` criteria as a `Record` of those ids. `describe_pack` still returns the static `questions` template plus `dynamic_choice_from_state: true`. The TypeSafe JS SDK accepts dynamic option keys; do not invent ids the caller did not pass.
 
 Add a registry or handler test if the pack has a special contract (for example: a gate that Jev must **not** compute, target options built from `items[]` / `files[]`, or additive `guidance` on `run_pack`).
 
+## Custom questions (`run_questions`)
+
+**Packs are shortcuts.** Prefer `run_pack` when `list_packs` has an id. `run_questions` is the **typed escape hatch** when none fits. It is still System One only:
+
+- Fail-closed schema before TypeSafe (Choice / Noul / Score; Choice cap matches packs)
+- Same `systemOne` path and API-key rule as `run_pack`
+- No side effects, no free-form prompt, no essay
+
+Agents should `list_packs` first. If none fits, they build closed state + typed questions (see [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md)). After a custom pattern repeats 2–3 times, add a named pack instead of leaving callers on the escape hatch — that is how `i18n_copy` landed.
+
 ## What not to add
 
-- A tool that accepts arbitrary TypeSafe questions
+- A free-form `ask_jev` / essay / chat tool
 - Dashboards, web apps, or hosted proxies
 - Side effects (GitHub comments, merges, refunds). Those belong in the caller
 - Fabricated TypeSafe endpoints or answer fields

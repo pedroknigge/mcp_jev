@@ -25,7 +25,7 @@ test("verify-mcp.sh smokes initialize, tools/list, ping, and list_packs", () => 
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /verify-mcp: ok/);
   assert.match(result.stdout, /initialize:/);
-  assert.match(result.stdout, /tools\/list: describe_pack, list_packs, ping, run_pack/);
+  assert.match(result.stdout, /tools\/list: describe_pack, list_packs, ping, run_pack, run_questions/);
   assert.match(result.stdout, /list_packs: /);
   assert.match(result.stdout, /computer_use_step/);
   assert.match(result.stdout, /review_diff/);

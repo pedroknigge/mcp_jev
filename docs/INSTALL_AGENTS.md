@@ -94,7 +94,7 @@ Install and configure mcp_jev from https://github.com/pedroknigge/mcp_jev using 
 
 ## Verify
 
-`mcp_jev doctor` → `mcp_jev smoke` (or `scripts/verify-mcp.sh`; no TypeSafe) → host `ping` → `list_packs` → optional `describe_pack`. `npm test` never needs a live key.
+`mcp_jev doctor` → `mcp_jev smoke` (or `scripts/verify-mcp.sh`; no TypeSafe) → host `ping` → `list_packs`. Packs are shortcuts: `describe_pack` / `run_pack`, or `run_questions` if no pack fits. `npm test` never needs a live key. Custom path: [CUSTOM_JUDGMENTS.md](CUSTOM_JUDGMENTS.md).
 
 ## Security
 

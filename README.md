@@ -1,6 +1,6 @@
 # mcp_jev
 
-Local MCP server that runs **TypeSafe Jev** (System One) **packs** — typed **Choice / Noul / Score** judgments, not chat.
+Local MCP server that runs **TypeSafe Jev** (System One) **packs** — typed **Choice / Noul / Score** judgments, not chat. When no pack fits, **`run_questions`** is the typed custom path (still System One, still not an essay).
 
 Anyone runs it **on their own PC** with **their own** TypeSafe API key. This repo does not host Jev, proxy your key, or invent a free-form `ask_jev` tool.
 
@@ -8,7 +8,7 @@ Anyone runs it **on their own PC** with **their own** TypeSafe API key. This rep
 
 **Docs (source of truth):** this repo — [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) · TypeSafe API: [docs.typesafe.ai](https://docs.typesafe.ai) · [llms.txt](https://docs.typesafe.ai/llms.txt)
 
-Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · Releases: [docs/RELEASES.md](docs/RELEASES.md)
+Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Custom judgments: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · Releases: [docs/RELEASES.md](docs/RELEASES.md)
 
 - [Why mcp_jev](#why-mcp_jev)
 - [Install (happy path)](#install-happy-path)
@@ -31,17 +31,17 @@ Use it when the host already has structured state and needs a closed-catalog cal
 | Layer | Owns |
 | --- | --- |
 | **Harness / agent** | Observation, tools, typed strings, merges, comments, stop rules |
-| **mcp_jev** | Versioned packs → `systemOne` → Choice / Noul / Score |
+| **mcp_jev** | Versioned packs or typed custom questions → `systemOne` → Choice / Noul / Score |
 | **Host config** | Keyless `command` = `~/.mcp_jev/bin/mcp_jev` |
 
-Closed tools only: `list_packs` / `describe_pack` / `run_pack` / `ping`. Key-once in `~/.mcp_jev`. Patterns here follow common ecosystem loops (computer-use, review pipelines, model routing) reimplemented as packs — no copied code, no third-party trademarks.
+Closed tools only: `list_packs` / `describe_pack` / `run_pack` / `run_questions` / `ping`. Key-once in `~/.mcp_jev`. Patterns here follow common ecosystem loops (computer-use, review pipelines, model routing) reimplemented as packs — no copied code, no third-party trademarks. **Packs are shortcuts:** if one fits, `run_pack`. If none fits, build closed state + typed Choice / Noul / Score and call `run_questions`.
 
 | | Jev (System One) | Chat LLM |
 | --- | --- | --- |
 | Input | State + closed questions | Prompt / conversation |
 | Output | `choice` / `noul` / `score` + probabilities | Prose you must parse |
 | Control | Your code composes answers | The model narrates a plan |
-| This MCP | Runs a **pack** | Out of scope |
+| This MCP | Runs a **pack** or typed **`run_questions`** | Out of scope |
 
 JavaScript SDK (what this server calls):
 
@@ -126,9 +126,9 @@ npm run smoke:packs               # ping → list_packs → describe+run every p
 
 On the host, after restart:
 
-1. **`ping`** — `ok`, `packs` ≥ 12, `api_key_set` boolean. Never invent `run_pack` answers if the key is missing.
+1. **`ping`** — `ok`, `packs` ≥ 12, `api_key_set` boolean. Never invent `run_pack` / `run_questions` answers if the key is missing.
 2. **`list_packs`** — pick an `id`.
-3. **`describe_pack`** then **`run_pack`**.
+3. If a pack fits: **`describe_pack`** then **`run_pack`**. If none fits: **`run_questions`** (closed state + typed Choice / Noul / Score).
 
 CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
 
@@ -144,6 +144,12 @@ npm run smoke:packs -- --live    # real TypeSafe from TYPESAFE_API_KEY or ~/.mcp
 Default `smoke:packs` injects the same mocked `systemOne` pattern as `npm test` (no network). It prints a table (`pack`, `ok`, `ms`, `error`) and exits non-zero if any pack fails. `--live` is skipped in CI unless `TYPESAFE_API_KEY` is set and `SMOKE_LIVE=1`.
 
 ## Recipes
+
+### `run_questions` (no pack fits)
+
+**Packs are shortcuts.** `list_packs` first. If an id fits, `describe_pack` + `run_pack` (for example hardcoded UI copy → **`i18n_copy`**). If **no pack fits**, do **not** stop: build a closed state object and typed Choice / Noul / Score questions, then call **`run_questions`**. Same `systemOne` path as `run_pack`. Not “write me a review”. After a pattern repeats 2–3 times, upstream a named pack.
+
+Example (public-API / changelog break — no pack): state `{ path, change_summary, symbols:[{id,kind,note}] }` + Noul `is_breaking_for_callers` + Score `doc_debt` + Choice `hottest_symbol` over symbol ids plus `none`. Full recipe: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md).
 
 ### `computer_use_step` (harness)
 
@@ -276,7 +282,7 @@ Optional Mode B: one call with `files[]` (paths only) + short `batch_notes` — 
 
 ### `i18n_copy` (hardcoded UI copy)
 
-Per-file audit of hardcoded strings that should live in an i18n layer. The harness extracts a **closed** `candidates[]` catalog (max ~20). Jev does not rewrite JSX or locale JSON.
+**Shortcut pack.** Do not rebuild this as `run_questions`. Per-file audit of hardcoded strings that should live in an i18n layer. The harness extracts a **closed** `candidates[]` catalog (max ~20). Jev does not rewrite JSX or locale JSON.
 
 Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized` → Score `i18n_debt` (0 clean → 3 blocking for a multi-locale ship) → Choice `hottest_candidate` from `candidates[].id` plus `none` → Choice `primary_bucket` (`ui_copy` | `error_message` | `marketing` | `dev_only` | `mixed` | `none`).
 
@@ -408,7 +414,7 @@ Same wrapper `command`. Some editors use `context_servers` instead of `mcpServer
 >
 > If the MCP tools are missing: tell the user to run `scripts/install.sh` (or `install.ps1`) from that repo, paste the printed snippets, set the key once (`config set-key` / install prompt), run `mcp_jev doctor`, restart the host.
 >
-> Always: `list_packs` → `describe_pack` → `run_pack`. Side effects stay in **your** code. Never put `TYPESAFE_API_KEY` in chat. If `ping.api_key_set` is false, run `mcp_jev config set-key` — do not embed the key in every host config.
+> Always: `list_packs`. Packs are shortcuts: if one fits, `describe_pack` → `run_pack`. If **no pack fits**, do not stop: build closed state + typed Choice / Noul / Score and call `run_questions`. Side effects stay in **your** code. Never put `TYPESAFE_API_KEY` in chat. If `ping.api_key_set` is false, run `mcp_jev config set-key` — do not embed the key in every host config.
 
 ## Tools (closed catalog)
 
@@ -417,9 +423,10 @@ Same wrapper `command`. Some editors use `context_servers` instead of `mcpServer
 | `list_packs` | none | `id`, `version`, `title`, `summary`, `when_to_use` |
 | `describe_pack` | `pack_id` | JSON Schema, questions, `example_state`, `suggested_workflow`, `notes` |
 | `run_pack` | `pack_id`, `state` | Validates state, calls TypeSafe `systemOne`, returns typed answers + usage. **No side effects.** |
+| `run_questions` | `state`, `questions`, optional `model` | Fail-closed typed Choice / Noul / Score when **no pack fits**. Same `systemOne` path as `run_pack`. **No side effects.** Not chat. |
 | `ping` | none | Versions, pack count, `api_key_set`, `api_key_source` (`env` \| `user_store` \| `none`). **Never** echoes the key |
 
-There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` never call TypeSafe. Only `run_pack` does.
+There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` never call TypeSafe. Only `run_pack` and `run_questions` do. Teaching for the custom path: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md).
 
 ## Packs
 
@@ -448,7 +455,7 @@ Packs live in `src/packs/` (in-repo). How to add one: [CONTRIBUTING.md](CONTRIBU
 flowchart LR
   Agent[Agent] -->|stdio MCP| Server["mcp_jev"]
   Server --> Packs[Pack registry]
-  Server -->|run_pack| SDK["TypeSafeClient.systemOne"]
+  Server -->|run_pack / run_questions| SDK["TypeSafeClient.systemOne"]
   SDK --> API["POST /v1/systemone"]
   API --> Jev["Jev"]
   Jev -->|typed answers| SDK
@@ -461,7 +468,7 @@ flowchart LR
 
 | Variable | Required | Default |
 | --- | --- | --- |
-| `TYPESAFE_API_KEY` | Yes, for `run_pack` | From `~/.mcp_jev/.env` after install |
+| `TYPESAFE_API_KEY` | Yes, for `run_pack` / `run_questions` | From `~/.mcp_jev/.env` after install |
 | `TYPESAFE_BASE_URL` | No | SDK: `https://api.typesafe.ai` |
 | `JEV_MODEL` | No | `jev-latest` |
 | `TYPESAFE_DEFAULT_MODEL` | No | Used if `JEV_MODEL` is unset |
@@ -491,10 +498,11 @@ CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev ho
 | --- | --- |
 | `doctor` / `NOT_READY` | Non-interactive install without a key. Run `mcp_jev config set-key`, then `mcp_jev doctor`. |
 | `ping` → `api_key_set: false` | Same. Confirm `~/.mcp_jev/.env` exists. Restart the host. |
-| `run_pack` / `scan` → `missing_api_key` | Same. `--dry-run` still works. Do not fabricate answers. |
+| `run_pack` / `run_questions` / `scan` → `missing_api_key` | Same. `--dry-run` still works. Do not fabricate answers. |
 | `run_pack` → `auth` | Key rejected (HTTP 401). Rotate at the TypeSafe dashboard, then `config set-key`. |
-| `invalid_state` | Re-read `describe_pack`. Starter packs reject extra fields. `computer_use_step` also rejects screenshots. |
-| `unknown_pack` | `list_packs`. There is no `ask_jev`. |
+| `invalid_state` | Re-read `describe_pack`. Starter packs reject extra fields. `computer_use_step` also rejects screenshots. Custom `run_questions` state must be a JSON object. |
+| `invalid_questions` | `run_questions` failed schema: Choice needs 2–255 closed options; Score ≥2 levels; no free-form types. |
+| `unknown_pack` | `list_packs`. If none fits, `run_questions`. There is no `ask_jev`. |
 | Wrong Node | `node -v` must be 20+. GUI hosts may not see nvm. |
 | stdio pollution | Wrapper and server must not write to **stdout**. |
 | `npx mcp_jev` 404 | Expected. mcp_jev is not on npm. Clone GitHub and run `scripts/install.sh`; later `scripts/update.sh`. See [docs/RELEASES.md](docs/RELEASES.md). |
