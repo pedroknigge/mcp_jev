@@ -8,7 +8,7 @@ Anyone runs it **on their own PC** with **their own** TypeSafe API key. This rep
 
 **Docs (source of truth):** this repo — [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) · TypeSafe API: [docs.typesafe.ai](https://docs.typesafe.ai) · [llms.txt](https://docs.typesafe.ai/llms.txt)
 
-Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Custom judgments: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · Releases: [docs/RELEASES.md](docs/RELEASES.md)
+Skill: [skills/mcp_jev/SKILL.md](skills/mcp_jev/SKILL.md) · Custom judgments: [docs/CUSTOM_JUDGMENTS.md](docs/CUSTOM_JUDGMENTS.md) · Product backlog: [docs/BACKLOG.md](docs/BACKLOG.md) · Host deep dive: [docs/INSTALL_AGENTS.md](docs/INSTALL_AGENTS.md) · Releases: [docs/RELEASES.md](docs/RELEASES.md)
 
 - [Why mcp_jev](#why-mcp_jev)
 - [Install (happy path)](#install-happy-path)
