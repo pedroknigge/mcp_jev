@@ -1,9 +1,10 @@
 import { VERSION as SDK_VERSION } from "@typesafe-ai/sdk";
 
 import type { AppConfig } from "./config.js";
+import { parseCustomRunInput } from "./custom-questions.js";
 import { missingApiKeyError, ToolError } from "./errors.js";
 import { getPack, listPacks, packCount } from "./packs/registry.js";
-import { questionsFor } from "./packs/questions.js";
+import { questionsFor, toSdkQuestions } from "./packs/questions.js";
 import type { SystemOneCall } from "./typesafe.js";
 import { validatePackState } from "./validate.js";
 import { SERVER_NAME, SERVER_VERSION } from "./version.js";
@@ -79,5 +80,27 @@ export async function handleRunPack(
     answers,
     usage: result.usage,
     ...extra,
+  };
+}
+
+export async function handleRunQuestions(
+  input: { state?: unknown; questions?: unknown; model?: unknown },
+  deps: { config: AppConfig; systemOne: SystemOneCall },
+): Promise<ToolJson> {
+  if (!deps.config.apiKeySet) {
+    throw missingApiKeyError();
+  }
+
+  const parsed = parseCustomRunInput(input);
+  const result = await deps.systemOne({
+    state: parsed.state,
+    questions: toSdkQuestions(parsed.questions),
+    model: parsed.model ?? deps.config.model,
+  });
+
+  return {
+    model: result.model,
+    answers: result.answers,
+    usage: result.usage,
   };
 }

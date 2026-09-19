@@ -112,7 +112,7 @@ try {
 
   const listed = await request("tools/list", {});
   const names = (listed.result?.tools ?? []).map((tool) => tool.name).sort();
-  const expected = ["describe_pack", "list_packs", "ping", "run_pack"];
+  const expected = ["describe_pack", "list_packs", "ping", "run_pack", "run_questions"];
   if (JSON.stringify(names) !== JSON.stringify(expected)) {
     fail(`tools/list mismatch: ${JSON.stringify(names)}`);
   }

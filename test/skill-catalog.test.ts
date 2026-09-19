@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { allPacks, listPacks } from "../src/packs/index.js";
+import { SMOKE_TOOLS } from "../src/smoke.js";
 import {
   CATALOG_REL,
   catalogFilePath,
@@ -37,6 +38,7 @@ test("SKILL.md covers every registry pack id and points at the catalog", () => {
   assert.match(skill, /list_packs/);
   assert.match(skill, /describe_pack/);
   assert.match(skill, /run_pack/);
+  assert.match(skill, /run_questions/);
   assert.match(skill, /`ping`/);
   assert.match(skill, /mcp_jev doctor/);
   assert.match(skill, /mcp_jev hosts print/);
@@ -113,4 +115,36 @@ test("README pack table covers the same registry ids", () => {
   for (const pack of listPacks()) {
     assert.ok(readme.includes(`\`${pack.id}\``), `README.md missing pack id ${pack.id}`);
   }
+});
+
+test("docs teach run_questions and mention every MCP tool id", () => {
+  const skill = read("skills/mcp_jev/SKILL.md");
+  const readme = read("README.md");
+  const contributing = read("CONTRIBUTING.md");
+  const custom = read("docs/CUSTOM_JUDGMENTS.md");
+
+  for (const id of SMOKE_TOOLS) {
+    assert.ok(skill.includes(`\`${id}\``), `SKILL.md missing tool id ${id}`);
+    assert.ok(readme.includes(`\`${id}\``), `README.md missing tool id ${id}`);
+  }
+
+  assert.match(skill, /If \*\*no pack fits\*\*/);
+  assert.match(skill, /has_user_facing_hardcoded_copy/);
+  assert.match(skill, /i18n_debt/);
+  assert.match(skill, /hottest_candidate/);
+  assert.match(skill, /CUSTOM_JUDGMENTS\.md/);
+  assert.doesNotMatch(skill, /Four tools\. No others/);
+  assert.doesNotMatch(skill, /say this server cannot do that/);
+
+  assert.match(readme, /run_questions/);
+  assert.match(contributing, /`run_questions`/);
+  assert.match(contributing, /typed escape hatch/);
+  assert.doesNotMatch(contributing, /A tool that accepts arbitrary TypeSafe questions/);
+
+  assert.match(custom, /run_questions/);
+  assert.match(custom, /has_user_facing_hardcoded_copy/);
+  assert.match(custom, /i18n_debt/);
+  assert.match(custom, /hottest_candidate/);
+  assert.match(custom, /list_packs/);
+  assert.match(custom, /write me a review/i);
 });

@@ -8,15 +8,16 @@ description: >
   GUI / browser / mobile harness, model router, Cursor, Claude, Codex, Grok, or
   Antigravity. If tools
   are absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
-  Always list_packs → describe_pack → run_pack. No ask_jev, no free-form
-  questions, no side effects, never paste TYPESAFE_API_KEY into chat.
+  Always list_packs. If a pack fits: describe_pack → run_pack. If no pack
+  fits: run_questions with closed state + typed Choice/Noul/Score. No
+  ask_jev, no essays, no side effects, never paste TYPESAFE_API_KEY into chat.
 ---
 
 # mcp_jev — run Jev packs, do not chat
 
-**Jev is not an LLM chat model.** TypeSafe System One (flagship: Jev) takes **state + typed questions** and returns **Choice / Noul / Score** answers. This MCP **only runs versioned packs** from the mcp_jev repo. Side effects stay in your code. mcp_jev is the judgment layer: fast typed decisions for agents and harnesses.
+**Jev is not an LLM chat model.** TypeSafe System One (flagship: Jev) takes **state + typed questions** and returns **Choice / Noul / Score** answers. This MCP runs **versioned packs** and, when none fits, **`run_questions`** (same System One path; not chat). Side effects stay in your code. mcp_jev is the judgment layer: fast typed decisions for agents and harnesses.
 
-**Latest install/config source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) (README + `scripts/`). TypeSafe API docs: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Host extras: [`references/install.md`](references/install.md). **Exact pack ids, state fields, and question ids:** [`references/pack-catalog.md`](references/pack-catalog.md) (generated from `src/packs/`; `npm test` fails if it drifts).
+**Latest install/config source of truth:** [https://github.com/pedroknigge/mcp_jev](https://github.com/pedroknigge/mcp_jev) (README + `scripts/`). TypeSafe API docs: [https://docs.typesafe.ai/llms.txt](https://docs.typesafe.ai/llms.txt). Host extras: [`references/install.md`](references/install.md). **Exact pack ids, state fields, and question ids:** [`references/pack-catalog.md`](references/pack-catalog.md) (generated from `src/packs/`; `npm test` fails if it drifts). **No pack fits:** [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md).
 
 ## First-run script
 
@@ -38,6 +39,7 @@ mcp_jev doctor
 
 # 4) On the MCP host after restart:
 #    ping → list_packs → describe_pack → run_pack
+#    If no pack fits: run_questions (closed state + typed questions)
 ```
 
 If `doctor` is not ready: `mcp_jev config set-key`, then doctor again. Never paste the key into chat or host JSON.
@@ -78,7 +80,8 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
-| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** tools |
+| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **mcp_jev** `run_pack` — packs are shortcuts |
+| A typed judgment **no pack covers** | **`run_questions`** — closed state + Choice / Noul / Score. See [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md) |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** — recipe below |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
@@ -109,7 +112,68 @@ Optional: `MCP_JEV_SYNC_SKILL=1 ./scripts/update.sh` copies into `$REPO_HOME/.cu
 | One module’s `imports[]` / `exports[]` → layering fix | `boundary_check` | Not a full-repo `code_audit`. Jev does not move files. |
 | One UI file + closed hardcoded-string catalog → migrate / debt / hottest extract | `i18n_copy` | Not `code_audit` (structure). Not a locale-file rewrite. Gate in caller (`gateI18nCopy`). |
 
-If the user wants a question that is not in a pack, say this server cannot do that. Offer a new in-repo pack (`CONTRIBUTING.md`) or the TypeSafe SDK.
+If **no pack fits**, do **not** stop and do **not** invent `ask_jev`. Build closed state + typed questions and call **`run_questions`**. After that pattern repeats 2–3 times, upstream a named pack (`CONTRIBUTING.md`).
+
+## Recipe: `run_questions` (no pack fits)
+
+Not chat. Not “write me a review”. Same `systemOne` path as `run_pack`. Requires the API key. No side effects.
+
+1. `list_packs`. If an id fits → `describe_pack` + `run_pack`.
+2. If **no pack fits**: collect a **closed, small** state object (named evidence — not the repo).
+3. Ask only typed questions: Choice (closed `Record` of options, 2–255, include a refuse key if needed), Noul (`{ true, false }` optional), Score (`string[]` ≥2 ordered levels).
+4. `run_questions` `{ state, questions, model? }`.
+5. Compose gates in **your** code.
+6. After the same custom pattern repeats 2–3 times, add a named pack.
+
+Example — i18n hardcoded copy. State `{ path, candidates:[{id,text,kind}] }`. Noul `has_user_facing_hardcoded_copy`, Score `i18n_debt`, Choice `hottest_candidate` over candidate ids plus `none`.
+
+```json
+{
+  "state": {
+    "path": "src/components/Welcome.tsx",
+    "candidates": [
+      { "id": "hero_title", "text": "Welcome back", "kind": "jsx_text" },
+      { "id": "cta", "text": "Get started", "kind": "jsx_text" },
+      { "id": "debug", "text": "TODO: remove", "kind": "comment" }
+    ]
+  },
+  "questions": [
+    {
+      "id": "has_user_facing_hardcoded_copy",
+      "type": "noul",
+      "instructions": "Does `path` contain user-facing hardcoded copy among `candidates` (not comments, not identifiers)?",
+      "criteria": {
+        "true": "At least one candidate is user-visible product copy that should be extracted.",
+        "false": "No user-facing hardcoded copy; remaining strings are comments, identifiers, or already keyed."
+      }
+    },
+    {
+      "id": "i18n_debt",
+      "type": "score",
+      "instructions": "How much i18n debt is in `candidates` at `path`?",
+      "criteria": [
+        "No user-facing hardcoded copy, or only already-keyed strings.",
+        "A few isolated strings; easy to extract.",
+        "Several user-facing strings; localization will miss them.",
+        "Widespread hardcoded copy; shipping this locale-broken."
+      ]
+    },
+    {
+      "id": "hottest_candidate",
+      "type": "choice",
+      "instructions": "Which candidate is the hottest user-facing hardcoded string to extract first? Options are `candidates[].id` plus `none`.",
+      "criteria": {
+        "hero_title": "Welcome back — likely visible heading.",
+        "cta": "Get started — likely a button.",
+        "debug": "TODO: remove — likely a comment.",
+        "none": "No candidate is user-facing hardcoded copy worth extracting."
+      }
+    }
+  ]
+}
+```
+
+Anti-patterns: free-form “write me a review”; open-ended options; dumping the whole repo into state.
 
 ## Recipe: `computer_use_step`
 
@@ -324,13 +388,13 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 ## Verify
 
 1. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
-2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 12. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` answers.
+2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 12. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` or `run_questions` answers.
 3. **`list_packs`** — pick an `id` from the result.
-4. Then `describe_pack` / `run_pack`.
+4. If a pack fits: `describe_pack` / `run_pack`. If **no pack fits**: `run_questions`.
 
 ## Tool contract
 
-Four tools. No others.
+Five tools. No `ask_jev`.
 
 ### `ping`
 
@@ -359,6 +423,16 @@ Four tools. No others.
 
 Skip `describe_pack` only when you already have that pack's schema in **this** session.
 
+### `run_questions`
+
+- Args: `{ state: object, questions: array, model?: string }`
+- Fail-closed schema, then the same `TypeSafeClient.systemOne` path as `run_pack`
+- Each question: `{ id, type: "choice"|"noul"|"score", instructions, criteria }`
+- Returns `{ model, answers, usage }`
+- No side effects
+- Errors: `missing_api_key`, `invalid_arguments`, `invalid_state`, `invalid_questions`, plus the TypeSafe codes above
+- Teaching: [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md)
+
 ## Pack catalog (in-repo)
 
 Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New packs are added in-repo. Always `list_packs`. **Full state schema + example_state + notes:** [`references/pack-catalog.md`](references/pack-catalog.md).
@@ -381,8 +455,11 @@ Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New p
 ## Required workflow
 
 1. If tools missing → install + `doctor` (above)
-2. `list_packs` → `describe_pack` → collect short named state → `run_pack`
-3. Compose gates **after** the tool returns
+2. `list_packs`
+3. If a pack fits → `describe_pack` → collect short named state → `run_pack`
+4. If **no pack fits** → do **not** stop → closed state + typed questions → `run_questions`
+5. Compose gates **after** the tool returns
+6. After a custom pattern repeats 2–3 times, upstream a named pack
 
 ## How to read answers
 
@@ -399,7 +476,10 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 ## Anti-patterns (never)
 
 - Assume the MCP is already installed
-- Invent `ask_jev` or free-form questions
+- Invent `ask_jev` or free-form questions (“write me a review”)
+- Stop because `list_packs` had no match — use `run_questions`
+- Open-ended Choice options or a one-option catalog
+- Dump the whole repo into `run_questions` state
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
 - Treat non-interactive install without a key as success (`NOT_READY` / doctor must fail)
 - Ask Jev for `code_gate` on `pr_audit`, `review_diff`, or `verify_gap`
@@ -415,13 +495,13 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Act on speculative targets that do not match `operation`
 - Invent item ids or file paths that were not in the closed catalog
 - Retry `invalid_state` by guessing fields
-- Call `run_pack` when `api_key_set` is false
+- Call `run_pack` or `run_questions` when `api_key_set` is false
 
 ## Env
 
 | Variable | Role |
 | --- | --- |
-| `TYPESAFE_API_KEY` | For `run_pack`. Prefer `~/.mcp_jev/.env` |
+| `TYPESAFE_API_KEY` | For `run_pack` / `run_questions`. Prefer `~/.mcp_jev/.env` |
 | `MCP_JEV_HOME` | User config dir (default `~/.mcp_jev`) — key + wrapper |
 | `MCP_JEV_CONFIG` | Alias for `MCP_JEV_HOME` |
 | `MCP_JEV_CHECKOUT` | Git checkout (default `~/mcp_jev`) |

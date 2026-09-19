@@ -6,6 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 import { packCount } from "../src/packs/index.js";
+import { SMOKE_TOOLS } from "../src/smoke.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -24,7 +25,7 @@ test("stdio MCP exposes the closed tool catalog and answers ping", async () => {
     const listed = await client.listTools();
     assert.deepEqual(
       listed.tools.map((tool) => tool.name).sort(),
-      ["describe_pack", "list_packs", "ping", "run_pack"],
+      [...SMOKE_TOOLS],
     );
     assert.ok(!listed.tools.some((tool) => tool.name.includes("ask")));
 

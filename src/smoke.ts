@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-export const SMOKE_TOOLS = ["describe_pack", "list_packs", "ping", "run_pack"] as const;
+export const SMOKE_TOOLS = ["describe_pack", "list_packs", "ping", "run_pack", "run_questions"] as const;
 
 export const SMOKE_PACK_IDS = [
   "computer_use_step",
