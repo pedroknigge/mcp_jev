@@ -42,6 +42,7 @@ P0/P1 rows have GitHub issues labeled `backlog` / `harness` / `research`. Number
 
 | ID | Item | Release |
 | --- | --- | --- |
+| [BL-030](#bl-030--local-cli-dogfood-mcp_jev-dogfood) | Local CLI dogfood: `mcp_jev dogfood` writes `~/.mcp_jev/dogfood/latest.md` so agents validate without remote Shell. | 0.0.11 |
 | [BL-029](#bl-029--live-url-check-mcp_jev-urlcheck--live_url_check) | Live localhost URL check: CLI `mcp_jev urlcheck` (HTTP + code gate) + pack `live_url_check` (judgment only). Jev never fetches. | 0.0.10 |
 
 ## Now (P0)
@@ -95,6 +96,18 @@ P0/P1 rows have GitHub issues labeled `backlog` / `harness` / `research`. Number
 ---
 
 ## Shipped — details
+
+### BL-030 — Local CLI dogfood (`mcp_jev dogfood`)
+
+**Problem.** Agents could not dogfood mcp_jev when remote Shell to the user’s Mac failed (`spawn /bin/zsh ENOENT` even with Always Allow). Treating that as “mcp_jev broken” is a skill/MCP design failure.
+
+**Jev shape.** Existing `run_questions` Blind Wind-Tunnel (1–2 typed Choice / Noul questions invented before `list_packs`) plus optional `run_pack` on `computer_use_step` / `model_router` `example_state`. No new TypeSafe shapes.
+
+**State sketch.** Report files under `~/.mcp_jev/dogfood/` (`latest.json`, `latest.md`, `history/` last 10). Doctor boolean + offline pack list always; live TypeSafe skipped without a key or with `--skip-live`.
+
+**Success metric.** `mcp_jev dogfood` exits 0 when install checks pass and live is skipped or succeeds without invent-fail. Agents Read the report (or call MCP tools) instead of depending on remote Shell.
+
+**Inspiration.** In-repo doctor / smoke / urlcheck harnesses + Pedro: if we cannot dogfood locally, it is a skill/MCP design failure.
 
 ### BL-029 — Live URL check (`mcp_jev urlcheck` + `live_url_check`)
 

@@ -120,6 +120,7 @@ Later: `node ~/mcp_jev/dist/index.js config set-key`
 ```bash
 mcp_jev doctor          # checkout, dist, wrapper, api_key_set (boolean), host registration
 # or: node ~/mcp_jev/dist/index.js doctor --json
+mcp_jev dogfood         # canonical local self-test → ~/.mcp_jev/dogfood/latest.md
 mcp_jev smoke           # stdio JSON-RPC: initialize, tools/list, ping, list_packs
 ~/mcp_jev/scripts/verify-mcp.sh   # same smoke as a script
 npm run smoke:packs               # ping → list_packs → describe+run every pack (mocked TypeSafe)
@@ -131,11 +132,12 @@ On the host, after restart:
 2. **`list_packs`** — pick an `id`.
 3. If a pack fits: **`describe_pack`** then **`run_pack`**. If none fits: **`run_questions`** (closed state + typed Choice / Noul / Score).
 
-CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev urlcheck --base URL` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
+CLI: `mcp_jev doctor` · `mcp_jev dogfood` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev urlcheck --base URL` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
 
 ## Verify
 
 ```bash
+mcp_jev dogfood                  # canonical local self-test; Read ~/.mcp_jev/dogfood/latest.md
 npm test                         # unit tests; mocked TypeSafe; no live key
 ./scripts/verify-mcp.sh          # stdio JSON-RPC: initialize, tools/list, ping, list_packs
 npm run smoke:packs              # ping → list_packs → describe_pack + run_pack(example_state) for every pack
@@ -506,7 +508,7 @@ Same wrapper `command`. Some editors use `context_servers` instead of `mcpServer
 
 > You have **mcp_jev** (or you must install it from https://github.com/pedroknigge/mcp_jev). Jev is **not** chat. No `ask_jev`.
 >
-> If the MCP tools are missing: tell the user to run `scripts/install.sh` (or `install.ps1`) from that repo, paste the printed snippets, set the key once (`config set-key` / install prompt), run `mcp_jev doctor`, restart the host.
+> If the MCP tools are missing: tell the user to run `scripts/install.sh` (or `install.ps1`) from that repo, paste the printed snippets, set the key once (`config set-key` / install prompt), run `mcp_jev doctor`, restart the host. A remote Shell failure is not “mcp_jev broken” — prefer `mcp_jev dogfood` and Read `~/.mcp_jev/dogfood/latest.md`, or call `run_questions` / `run_pack` when attached.
 >
 > Always: `list_packs`. Packs are shortcuts: if one fits, `describe_pack` → `run_pack`. If **no pack fits**, do not stop: build closed state + typed Choice / Noul / Score and call `run_questions`. Side effects stay in **your** code. Never put `TYPESAFE_API_KEY` in chat. If `ping.api_key_set` is false, run `mcp_jev config set-key` — do not embed the key in every host config.
 
@@ -577,7 +579,7 @@ flowchart LR
 
 Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.
 
-CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev urlcheck --base URL` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
+CLI: `mcp_jev doctor` · `mcp_jev dogfood` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev urlcheck --base URL` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
 
 ## Security
 
@@ -592,6 +594,7 @@ CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev ur
 
 | Symptom | Fix |
 | --- | --- |
+| Remote Shell `spawn /bin/zsh ENOENT` | Host/shell bug, **not** mcp_jev. Run `mcp_jev dogfood` (or cron) and **Read** `~/.mcp_jev/dogfood/latest.md`. If MCP is attached, call `run_questions` / `run_pack`. |
 | `doctor` / `NOT_READY` | Non-interactive install without a key. Run `mcp_jev config set-key`, then `mcp_jev doctor`. |
 | `ping` → `api_key_set: false` | Same. Confirm `~/.mcp_jev/.env` exists. Restart the host. |
 | `run_pack` / `run_questions` / `scan` → `missing_api_key` | Same. `--dry-run` still works. Do not fabricate answers. |
@@ -616,6 +619,7 @@ npm start                # node dist/index.js (MCP stdio)
 npm test
 npm run typecheck
 mcp_jev doctor
+mcp_jev dogfood          # canonical local self-test → ~/.mcp_jev/dogfood/latest.md
 mcp_jev smoke            # same stdio check as verify-mcp.sh
 ```
 

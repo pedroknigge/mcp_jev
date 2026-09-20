@@ -9,6 +9,7 @@ import { loadConfig } from "./config.js";
 import { formatDoctorReport, runDoctor, wrapperPath } from "./doctor.js";
 import { formatHostSnippets, parseHostIds, writeHostConfigs, type HostId } from "./hosts.js";
 import { clearNotReadyMarker } from "./ready.js";
+import { DOGFOOD_HELP, runDogfood } from "./dogfood.js";
 import { parseScanArgs, runScan, SCAN_HELP } from "./scan.js";
 import {
   collectUrlCheckTargets,
@@ -35,6 +36,10 @@ Usage:
   mcp_jev                     Start the stdio MCP server
   mcp_jev doctor              Check checkout, dist, wrapper, key (boolean), hosts
   mcp_jev doctor --json       Same, machine-readable (never includes the key)
+  mcp_jev dogfood             Local self-test → ~/.mcp_jev/dogfood/latest.md (cron / agents)
+  mcp_jev dogfood --json      Same, print machine report (never includes the key)
+  mcp_jev dogfood --skip-live Skip TypeSafe even if a key is set
+  mcp_jev dogfood --urlcheck-base URL [--out DIR]
   mcp_jev hosts print         Keyless snippets for Cursor/Claude/Codex/Grok/Antigravity
   mcp_jev hosts write [ids]   Merge snippets into host configs (all or comma list)
   mcp_jev scan <path>         code_audit Pass 1 over a repo (signals-only, parallel)
@@ -98,6 +103,32 @@ export async function runCli(argv: string[]): Promise<void> {
       console.log(formatDoctorReport(report).trimEnd());
     }
     if (!report.ready) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (cmd === "dogfood") {
+    const dogfoodArgv = [sub, ...rest].filter((item): item is string => Boolean(item));
+    if (dogfoodArgv.includes("--help") || dogfoodArgv.includes("-h")) {
+      console.log(DOGFOOD_HELP.trimEnd());
+      return;
+    }
+    try {
+      const { report, exitCode, markdown } = await runDogfood(dogfoodArgv, {
+        userConfigDir: configDir,
+      });
+      const asJson = dogfoodArgv.includes("--json");
+      if (asJson) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(markdown.trimEnd());
+      }
+      if (exitCode !== 0) {
+        process.exitCode = exitCode;
+      }
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
     }
     return;

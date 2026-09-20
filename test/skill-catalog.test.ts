@@ -79,10 +79,12 @@ test("SKILL.md covers every registry pack id and points at the catalog", () => {
   assert.match(skill, /mcp_jev config path/);
   assert.match(skill, /mcp_jev scan/);
   assert.match(skill, /mcp_jev urlcheck/);
+  assert.match(skill, /mcp_jev dogfood/);
   assert.match(skill, /mcp_jev smoke/);
   assert.match(skill, /mcp_jev help/);
   assert.match(skill, /dist\/cli\.js scan/);
   assert.match(skill, /dist\/cli\.js urlcheck/);
+  assert.match(skill, /dist\/cli\.js dogfood/);
 
   for (const pack of listPacks()) {
     assert.ok(skill.includes(`\`${pack.id}\``), `SKILL.md missing pack id ${pack.id}`);
@@ -180,6 +182,9 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(skill, /irreversible_side_effect/);
   assert.match(skill, /tools_cascade/);
   assert.match(skill, /DOGFOOD\.md/);
+  assert.match(skill, /mcp_jev dogfood/);
+  assert.match(skill, /latest\.md/);
+  assert.match(skill, /spawn \/bin\/zsh ENOENT|remote Shell failure/);
   assert.match(skill, /before 255/);
   assert.match(skill, /turn start/);
   assert.doesNotMatch(skill, /Four tools\. No others/);
@@ -196,6 +201,8 @@ test("docs teach run_questions and mention every MCP tool id", () => {
   assert.match(readme, /needs_locale_split/);
   assert.match(readme, /model route via `run_questions`/i);
   assert.match(readme, /DOGFOOD\.md/);
+  assert.match(readme, /mcp_jev dogfood/);
+  assert.match(readme, /latest\.md/);
   assert.match(readme, /before 255/);
   assert.match(readme, /turn start/);
   assert.match(contributing, /`run_questions`/);
@@ -239,6 +246,11 @@ test("DOGFOOD.md teaches invent-before-list_packs and equal i18n recipes", () =>
   assert.match(dogfood, /turn start/);
   assert.match(dogfood, /blind-i18n-example/);
   assert.match(dogfood, /Bi-hourly dogfood notes/);
+  assert.match(dogfood, /mcp_jev dogfood/);
+  assert.match(dogfood, /latest\.md/);
+  assert.match(dogfood, /spawn \/bin\/zsh ENOENT/);
+  assert.match(dogfood, /not.*mcp_jev broken/i);
+  assert.match(dogfood, /run_questions/);
   assert.match(dogfood, /Version prefix required/);
   assert.match(dogfood, /VERSION — /);
   assert.match(dogfood, /One skill refresh path/);
