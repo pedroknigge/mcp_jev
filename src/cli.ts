@@ -10,6 +10,13 @@ import { formatDoctorReport, runDoctor, wrapperPath } from "./doctor.js";
 import { formatHostSnippets, parseHostIds, writeHostConfigs, type HostId } from "./hosts.js";
 import { clearNotReadyMarker } from "./ready.js";
 import { parseScanArgs, runScan, SCAN_HELP } from "./scan.js";
+import {
+  collectUrlCheckTargets,
+  normalizeBaseUrl,
+  parseUrlCheckArgs,
+  runUrlCheck,
+  URLCHECK_HELP,
+} from "./urlcheck.js";
 import { formatSmokeResult, runSmoke } from "./smoke.js";
 import {
   defaultRepoHome,
@@ -34,6 +41,7 @@ Usage:
   mcp_jev scan <path> --dry-run
   mcp_jev scan <path> --concurrency 16 --summary-only --jsonl scan.jsonl
   mcp_jev scan <path> --pass2 N [--resume] [--max-files N]
+  mcp_jev urlcheck --base URL [--discover] [--routes-file PATH] [--judge]
   mcp_jev smoke               Stdio initialize / tools / ping / list_packs (no TypeSafe)
   mcp_jev config set-key      Store TYPESAFE_API_KEY in ~/.mcp_jev/.env (once)
   mcp_jev config set-key KEY  Same, non-interactive
@@ -90,6 +98,59 @@ export async function runCli(argv: string[]): Promise<void> {
       console.log(formatDoctorReport(report).trimEnd());
     }
     if (!report.ready) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (cmd === "urlcheck") {
+    const urlArgv = [sub, ...rest].filter((item): item is string => Boolean(item));
+    let args;
+    try {
+      args = parseUrlCheckArgs(urlArgv, process.env);
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+      return;
+    }
+    if (args.help) {
+      console.log(URLCHECK_HELP.trimEnd());
+      return;
+    }
+    let base: string;
+    let targets;
+    try {
+      base = normalizeBaseUrl(args.base);
+      targets = collectUrlCheckTargets(args);
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+      return;
+    }
+    const config = loadConfig(process.env, { userConfigDir: configDir });
+    try {
+      const { summary } = await runUrlCheck({
+        base,
+        targets,
+        concurrency: args.concurrency,
+        timeoutMs: args.timeoutMs,
+        followRedirects: args.followRedirects,
+        maxRedirects: args.maxRedirects,
+        expectStatus: args.expectStatus,
+        headers: Object.fromEntries(args.headers.map((header) => [header.name, header.value])),
+        authCookie: args.authCookie,
+        strict404: args.strict404,
+        judge: args.judge,
+        judgeLimit: args.judgeLimit,
+        notes: args.notes,
+        json: args.json,
+        config,
+      });
+      if (summary.hard_failures > 0) {
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
     }
     return;

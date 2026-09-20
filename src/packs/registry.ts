@@ -5,6 +5,7 @@ import { commandRiskPack } from "./command-risk.js";
 import { computerUseStepPack } from "./computer-use-step.js";
 import { i18nCopyPack } from "./i18n-copy.js";
 import { intentRouterPack } from "./intent-router.js";
+import { liveUrlCheckPack } from "./live-url-check.js";
 import { localeCountryPack } from "./locale-country.js";
 import { modelRouterPack } from "./model-router.js";
 import { prAuditPack } from "./pr-audit.js";
@@ -26,6 +27,7 @@ const packs: PackDefinition[] = [
   verifyGapPack,
   boundaryCheckPack,
   i18nCopyPack,
+  liveUrlCheckPack,
 ];
 
 const byId = new Map(packs.map((pack) => [pack.id, pack]));

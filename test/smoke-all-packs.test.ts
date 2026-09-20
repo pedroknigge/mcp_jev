@@ -45,6 +45,7 @@ test("smoke-all-packs.mjs runs every pack through mocked TypeSafe", () => {
     "verify_gap",
     "boundary_check",
     "i18n_copy",
+    "live_url_check",
   ];
   for (const id of packIds) {
     assert.match(result.stdout, new RegExp(`^${id}\\s+true\\s+`, "m"));

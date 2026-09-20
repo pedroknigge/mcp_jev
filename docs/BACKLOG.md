@@ -27,6 +27,7 @@ Every `BL-###` has: **problem**, **Jev shape** (Choice / Noul / Score), **state 
 
 | Horizon | Meaning |
 | --- | --- |
+| **Shipped** | Landed on the public line (see version) |
 | **Now (P0)** | Ship or dogfood against current packs / `run_questions` |
 | **Next (P1)** | Recipes, schemas, or research that unblock harnesses |
 | **Later** | Real ideas, not this week |
@@ -36,6 +37,12 @@ Every `BL-###` has: **problem**, **Jev shape** (Choice / Noul / Score), **state 
 P0/P1 rows have GitHub issues labeled `backlog` / `harness` / `research`. Numbers are in the tables below.
 
 ---
+
+## Shipped
+
+| ID | Item | Release |
+| --- | --- | --- |
+| [BL-029](#bl-029--live-url-check-mcp_jev-urlcheck--live_url_check) | Live localhost URL check: CLI `mcp_jev urlcheck` (HTTP + code gate) + pack `live_url_check` (judgment only). Jev never fetches. | 0.0.10 |
 
 ## Now (P0)
 
@@ -86,6 +93,20 @@ P0/P1 rows have GitHub issues labeled `backlog` / `harness` / `research`. Number
 | [BL-028](#bl-028--more-audit-packs-without-a-harness) | More audit packs without a harness | Generic menu already feels weak |
 
 ---
+
+## Shipped — details
+
+### BL-029 — Live URL check (`mcp_jev urlcheck` + `live_url_check`)
+
+**Problem.** Agents needed a bounded localhost crawl (Next/local) plus typed triage of failures. HTTP must stay in code; Jev only judges closed signals.
+
+**Jev shape.** Nouls `is_real_break` / `is_expected_auth_or_redirect` / `likely_regression_from_recent_change`; Score `severity` (0–3); Choices `primary_failure_kind` / `next_action`.
+
+**State sketch.** Per URL: `base_url` / `path` / `url`, `method`, `status`, `final_url`, `redirect_hops`, `ms`, `error_class`, optional `expected_auth`, `route_kind`, `notes`, `body_snippet`.
+
+**Success metric.** `mcp_jev urlcheck --base http://localhost:3000 --discover` (or `--routes-file`) prints a table and exits non-zero on hard failures only. `--judge` calls `run_pack` `live_url_check`. No MCP tool hits HTTP.
+
+**Inspiration.** In-repo `mcp_jev scan` harness pattern (signals in code, pack for judgment).
 
 ## Now (P0) — details
 
