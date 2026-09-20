@@ -6,7 +6,7 @@ Exact pack ids, state fields, and question ids from the TypeScript pack definiti
 Regenerate: `npx tsx scripts/sync-skill-catalog.ts` (also `npm run sync-skill-catalog`).
 `npm test` fails if this file drifts from the registry.
 
-Registry order (12): `pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `review_diff`, `code_audit`, `skill_router`, `command_risk`, `verify_gap`, `boundary_check`, `i18n_copy`.
+Registry order (13): `pr_audit`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `review_diff`, `code_audit`, `skill_router`, `command_risk`, `verify_gap`, `boundary_check`, `i18n_copy`, `live_url_check`.
 
 Agent skill: [`../SKILL.md`](../SKILL.md). Frontmatter description always starts with
 `package.json` version + ` — `. After `scripts/update.sh`, the skill is refreshed **once**
@@ -871,4 +871,77 @@ Required: `path`, `uses_i18n_api`, `candidates`. `additionalProperties: false`.
 - Thresholds live in caller code (gateI18nCopy is an example). Jev does not extract strings, write locale files, or compute a repo-wide i18n grade.
 - Distinct from code_audit (engineering structure) and review_diff (diff risk). Use this pack when the question is hardcoded UI copy vs i18n.
 - Noul answers have no separate confidence field — the probability is the belief. Choice and Score include probabilities plus confidence.
+
+## `live_url_check` 1.0.0
+
+**Live URL check.** Typed triage of one already-fetched URL: Nouls is_real_break / is_expected_auth_or_redirect / likely_regression_from_recent_change, Score severity (0 noise → 3 ship-blocker), Choice primary_failure_kind and next_action. Jev never hits HTTP.
+
+When to use: After a harness (`mcp_jev urlcheck`) already collected status, timing, and error_class for one URL (or you built the same closed signals yourself). Prefer this over treating a status code as the whole story. Do not use Jev to fetch localhost. If invented heads differ, use run_questions.
+
+### State
+
+Required: `method`, `error_class`. `additionalProperties: false`.
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `base_url` | string | no | Origin the harness crawled, e.g. http://localhost:3000. |
+| `path` | string | no | Path on that origin, e.g. /api/health. Required when `url` is omitted. |
+| `url` | string | no | Full URL the harness requested. Alternative to `base_url` + `path`. |
+| `method` | string | yes | HTTP method the harness used. |
+| `status` | number | no | HTTP status if a response arrived. Omit on timeout / dns / connection. |
+| `final_url` | string | no | URL after redirects (same as `url` when there were none). |
+| `redirect_hops` | number | no | How many redirects the harness followed. |
+| `ms` | number | no | Harness-measured elapsed milliseconds. |
+| `error_class` | string | yes | Closed harness class. Not the Jev decision. |
+| `expected_auth` | boolean | no | Caller already thinks this route should require auth. Omit if unknown. |
+| `route_kind` | string | no | Optional caller hint: page, api, asset, or unknown. |
+| `notes` | string | no | Optional short note (max 400). Mention a recent change only when that is true. |
+| `body_snippet` | string | no | Optional first ~200 chars of the body, stripped. Harness should send this only when status ≥ 400. |
+| `content_type` | string | no | Optional Content-Type from the response. |
+
+### Questions
+
+- **noul** `is_real_break`
+- **noul** `is_expected_auth_or_redirect`
+- **noul** `likely_regression_from_recent_change`
+- **score** `severity` — 4 rungs: Noise; Local; Material; Ship-blocker
+- **choice** `primary_failure_kind` — options: `connection` | `timeout` | `not_found` | `auth` | `redirect` | `server_error` | `client_error` | `ok` | `other`
+- **choice** `next_action` — options: `ignore` | `fix_route` | `fix_server` | `check_auth` | `investigate_redirect` | `open_browser` | `none`
+
+### Example state
+
+```json
+{
+  "base_url": "http://localhost:3000",
+  "path": "/api/health",
+  "url": "http://localhost:3000/api/health",
+  "method": "GET",
+  "status": 500,
+  "final_url": "http://localhost:3000/api/health",
+  "redirect_hops": 0,
+  "ms": 42,
+  "error_class": "http_5xx",
+  "expected_auth": false,
+  "route_kind": "api",
+  "notes": "Recent change to the health handler.",
+  "body_snippet": "Internal Server Error",
+  "content_type": "text/plain"
+}
+```
+
+### Suggested workflow
+
+1. Collect signals in code (`mcp_jev urlcheck --base http://localhost:3000` or your own fetch). Jev does not make HTTP requests.
+1. For each failure (or a small top-N), pass one URL’s closed signals to run_pack live_url_check.
+1. Read is_real_break and is_expected_auth_or_redirect first, then severity.score, then primary_failure_kind and next_action.
+1. Keep the code gate in the CLI/harness (5xx / timeout / connection / redirect_loop, optional strict 404). Jev only judges.
+1. If invented heads differ from this pack, use run_questions with the same closed signals.
+
+### Notes
+
+- HTTP stays in the harness. This pack is judgment only — no MCP tool hits localhost.
+- Thresholds live in caller code (`mcp_jev urlcheck` exit code). Example: hard-fail on timeout / dns / connection / redirect_loop / http_5xx; treat 401/403 as auth candidates; 404 is a fail candidate and a hard fail only with --strict-404.
+- likely_regression_from_recent_change should stay low unless `notes` mention a recent change.
+- Closed catalogs. Fork the pack in-repo if you need another failure kind or action.
+- Per-URL only. Aggregate counts in the CLI; do not dump a crawl into one state object.
 

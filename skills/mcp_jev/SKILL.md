@@ -1,10 +1,11 @@
 ---
 name: mcp_jev
 description: >
-  0.0.9 — Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
+  0.0.10 — Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
   mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, PR audit, review
-  diff, code audit, verify gap, boundary check, file audit, i18n / hardcoded UI copy, intent routing, locale/country, computer-use /
+  diff, code audit, verify gap, boundary check, live URL check, localhost
+  urlcheck, file audit, i18n / hardcoded UI copy, intent routing, locale/country, computer-use /
   GUI / browser / mobile harness, model router, Cursor, Claude, Codex, Grok, or
   Antigravity. If tools
   are absent, run scripts/install.sh from https://github.com/pedroknigge/mcp_jev.
@@ -81,12 +82,13 @@ Do **not** also copy the skill folder. Description always starts with `VERSION �
 | Need | Use |
 | --- | --- |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
-| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **`run_pack`** — **packs are shortcuts** |
+| A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `live_url_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **`run_pack`** — **packs are shortcuts** |
 | A typed Choice / Noul / Score judgment **no pack covers** | **`run_questions`** — closed state + typed questions. Not chat. See [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md) |
 | Next GUI / browser / mobile action from a structured catalog | **`computer_use_step`** — recipe below |
 | Which model / tool lane this turn | **`model_router`** if invented heads match exactly; else **`run_questions`** (model-route recipe below) |
 | Generic diff review (correctness/security/reliability/compat/test_gap) | **`review_diff`** — recipe below |
 | Per-file / full-repo / architecture / "try Jev on these files" | **`mcp_jev scan`** / **`code_audit`** Pass 1 (signals-first) — Full repo scan recipe. Not `pr_audit`. |
+| Live localhost / any `--base` URLs (status, timeout, 5xx) | **`mcp_jev urlcheck`** harness (HTTP) + pack **`live_url_check`** (judgment only) |
 | Hardcoded UI strings vs i18n (`t()` / locale files) | **`i18n_copy`** if invented heads match exactly; else **`run_questions`** (i18n recipe below, equal JSON). Not `code_audit`. |
 | Closed skill list → load one or none | **`skill_router`** |
 | Proposed shell command risk signals | **`command_risk`** — allowlist still required |
@@ -111,6 +113,7 @@ Do **not** also copy the skill folder. Description always starts with `VERSION �
 | Proposed shell command → risk signals | `command_risk` | Not an allowlist. Sandbox still required. |
 | One claim vs named evidence → ship / add proof / block | `verify_gap` | Not `review_diff.test_gap` or `code_audit.missing_verification`. Jev does not write the test or compute `code_gate`. |
 | One module’s `imports[]` / `exports[]` → layering fix | `boundary_check` | Not a full-repo `code_audit`. Jev does not move files. |
+| One already-fetched URL (status / error_class / hops) → real break vs auth vs next action | `live_url_check` | Jev does not hit HTTP. Harness is `mcp_jev urlcheck`. Extra heads → `run_questions`. |
 | One UI file + closed hardcoded-string catalog → migrate / debt / hottest extract | `i18n_copy` **only if invented heads match exactly** | Extra head (e.g. `needs_locale_split`) → `run_questions` i18n recipe. Not `code_audit` (structure). Not a locale-file rewrite. Gate in caller (`gateI18nCopy`). |
 | Typed Choice / Noul / Score with **no** matching pack id | **`run_questions`** (not a pack) | Do not invent `ask_jev`. Do not stop. Prefer a pack shortcut when one matches **exactly**. |
 
@@ -467,6 +470,40 @@ mcp_jev scan . --concurrency 16 --resume --summary-only --jsonl scan.jsonl
 
 Recipe: **parallel Pass 1 → read top severity + path-token FP note → Pass 2 excerpts on top-K only.** Path tokens (`billing`, `auth`, `migration`, …) can move Nouls without reading bodies; treat those flags as suspects until Pass 2.
 
+## Recipe: `mcp_jev urlcheck` / `live_url_check`
+
+**Jev never makes HTTP requests.** The CLI harness discovers or reads routes, hits `--base` (localhost or any origin), classifies signals, and applies the **code gate**. Pack `live_url_check` only judges one URL’s closed signals (or skip `--judge` and stop at the table). Packs are shortcuts: if invented heads differ, `run_questions` with the same signals.
+
+```bash
+# Next.js app in cwd — conservative discovery (app/**/page.tsx, app/**/route.ts, pages/*, Express-ish app.get('/path'))
+mcp_jev urlcheck --base http://localhost:3000 --discover
+# Known list (text: one path per line, or JSON array of paths / {path, method?})
+mcp_jev urlcheck --base http://localhost:3000 --routes-file routes.txt
+mcp_jev urlcheck --base http://127.0.0.1:3000 --routes-file routes.json --judge --json
+# or: node dist/cli.js urlcheck --base http://localhost:3000 --discover
+```
+
+**Discovery limits:** no sitemap, no running the app, no expansion of `[id]` / `:param` routes, no `public/` crawl, cap 200. Skips `node_modules` / `.next`. If discovery finds nothing and there is no `--routes-file`, the CLI exits with a clear error. Prefer `--routes-file` when you already know the paths.
+
+**Code gate (exit 0 only when `hard_failures = 0`):**
+
+| Class | `ok` | Hard fail (exit 1) |
+| --- | --- | --- |
+| 2xx, or 3xx that land on 2xx | yes | no |
+| `--expect-status` match | yes | no |
+| 401 / 403 | no (auth candidate) | no |
+| 404 | no (fail candidate) | only with `--strict-404` |
+| other 4xx | no | no |
+| 5xx, timeout, dns, connection, redirect_loop | no | yes |
+
+`--auth-cookie` / `--header` are sent but **never printed**. `--judge` calls `run_pack` `live_url_check` on top failures (default 8). Without `--judge`, print the table/JSON and exit on the code gate only.
+
+Per-URL signals: `url`, `method`, `status`, `final_url`, `redirect_hops`, `ms`, `ok`, `error_class` (`ok` \| `timeout` \| `dns` \| `connection` \| `redirect_loop` \| `http_4xx` \| `http_5xx` \| `body_error_hint` \| `other`), optional `body_snippet` (first ~200 chars, stripped, only if status ≥ 400), optional `content_type`.
+
+### Pack `live_url_check`
+
+One URL (or the same closed object you built yourself). `run_pack` `live_url_check` → Nouls `is_real_break` / `is_expected_auth_or_redirect` / `likely_regression_from_recent_change` (low unless `notes` mention a recent change), Score `severity` (0 noise → 3 ship-blocker), Choice `primary_failure_kind` (`connection` \| `timeout` \| `not_found` \| `auth` \| `redirect` \| `server_error` \| `client_error` \| `ok` \| `other`), Choice `next_action` (`ignore` \| `fix_route` \| `fix_server` \| `check_auth` \| `investigate_redirect` \| `open_browser` \| `none`). Gate and HTTP stay in the harness.
+
 ## Recipe: `verify_gap`
 
 One claim vs named evidence. `run_pack` `verify_gap` → Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`, Score `verification_gap` (0 none → 3 ship-blocker), Choice `next_proof` (`unit_test` \| `integration` \| `manual_check` \| `type_proof` \| `none_needed` \| `unclear`). Compute **`code_gate` in the caller** (`verifyGapCodeGate` → `ship` \| `add_proof` \| `block`).
@@ -475,7 +512,7 @@ One claim vs named evidence. `run_pack` `verify_gap` → Nouls `has_adequate_ver
 
 One module: pass `module`, closed `imports[]` / `exports[]`, optional `layer_hint` / `change_summary`. `run_pack` `boundary_check` → Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`, Score `boundary_risk`, Choice `fix` (`keep` \| `extract` \| `move_layer` \| `unclear`). Move or extract in **your** code.
 
-## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`, `verify_gap`, `i18n_copy`)
+## Recipe: code-owned policy (`skill_router`, `command_risk`, `model_router`, `code_audit`, `verify_gap`, `i18n_copy`, `live_url_check`)
 
 Jev returns signals. **Your functions** decide. Unit-test those functions without a TypeSafe key (`src/policy-examples.ts`).
 
@@ -490,6 +527,8 @@ Jev returns signals. **Your functions** decide. Unit-test those functions withou
 `verify_gap`: Nouls + `verification_gap` → `verifyGapCodeGate` → `ship` | `add_proof` | `block`.
 
 `i18n_copy`: Nouls + `i18n_debt` → `gateI18nCopy` → `ok` | `glance` | `block`. Extract strings in the harness.
+
+`live_url_check`: Nouls + `severity` / `primary_failure_kind` after `mcp_jev urlcheck` already applied the HTTP code gate. Jev does not fetch.
 
 Example (copy into the harness): refuse a command if `is_destructive.noul ≥ 0.70` or `scope_matches.noul < 0.50`. Jev does not execute.
 
@@ -524,6 +563,7 @@ No-args starts the stdio MCP server. Commands (never print the TypeSafe key):
 | `mcp_jev config status` | Paths + `api_key_set` / `api_key_source` (never the secret) |
 | `mcp_jev config path` | Print the user config directory |
 | `mcp_jev scan <path>` | Full-repo `code_audit` Pass 1 (signals-only, parallel). `--dry-run`, `--concurrency N` (8 default; 16–32 for multi-k / 6000-files class), `--pass2 N`, `--top K`, `--max-files N`, `--jsonl PATH`, `--summary-only`, `--resume`, `--checkpoint-every N`. Progress + ETA on stderr. Also `node dist/cli.js scan`. |
+| `mcp_jev urlcheck --base URL` | Live URL harness (HTTP in this process). `--discover` and/or `--routes-file`, `--method GET\|HEAD`, `--concurrency 8`, `--timeout-ms 5000`, `--follow-redirects` (default), `--expect-status`, `--auth-cookie` / `--header` (never printed), `--strict-404`, `--judge` (`live_url_check` on top failures), `--json`. Exit 1 on hard failures (5xx / timeout / connection / redirect_loop; 404 only with `--strict-404`). Also `node dist/cli.js urlcheck`. |
 | `mcp_jev smoke` | Stdio initialize / tools / ping / list_packs. No TypeSafe call. Same check as `scripts/verify-mcp.sh`. |
 | `mcp_jev help` | Usage |
 
@@ -534,7 +574,7 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 ## Verify
 
 1. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
-2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 12. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` or `run_questions` answers.
+2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 13. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` or `run_questions` answers.
 3. **`list_packs`** — pick an `id` from the result.
 4. If a pack fits: `describe_pack` / `run_pack`. If **no pack fits**: `run_questions`.
 
@@ -597,6 +637,7 @@ Packs live under `src/packs/` (registry order in `src/packs/registry.ts`). New p
 | `verify_gap` | required `claim`; optional `evidence`, `diff_summary`, `change_summary`, `signals.has_tests_nearby` / `touches_money` / `touches_auth` / `is_generated` | Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`; Score `verification_gap`; Choice `next_proof` (`unit_test` \| `integration` \| `manual_check` \| `type_proof` \| `none_needed` \| `unclear`) | Compute **`code_gate`** (`verifyGapCodeGate`). Jev does not write the test. |
 | `boundary_check` | required `module`, `imports`, `exports`; optional `layer_hint`, `change_summary` | Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`; Score `boundary_risk`; Choice `fix` (`keep` \| `extract` \| `move_layer` \| `unclear`) | Extract / move / keep in caller code. |
 | `i18n_copy` | required `path`, `uses_i18n_api`, `candidates[]` (`id`,`text`,`kind` `jsx_text`\|`jsx_attr`\|`string_literal`\|`toast`\|`schema_message`, optional `line`; max 20); optional `language` (`tsx`\|`jsx`\|`vue`\|`svelte`), `framework_i18n` (`next-intl`\|`i18next`\|`react-intl`\|`lingui`\|`none`\|`unknown`), `locale_files_present`, `notes` | Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized`; Score `i18n_debt` (0 clean → 3 blocking); Choice `hottest_candidate` from `candidates[].id` plus `none`; Choice `primary_bucket` (`ui_copy` \| `error_message` \| `marketing` \| `dev_only` \| `mixed` \| `none`) | Truncate the catalog. `gateI18nCopy` → `ok` \| `glance` \| `block`. Do not rewrite locale files here. |
+| `live_url_check` | required `method` (`GET`\|`HEAD`), `error_class`; `url` or `path` (optional `base_url`); optional `status`, `final_url`, `redirect_hops`, `ms`, `expected_auth`, `route_kind` (`page`\|`api`\|`asset`\|`unknown`), `notes`, `body_snippet` (max 200; status ≥ 400), `content_type` | Nouls `is_real_break` / `is_expected_auth_or_redirect` / `likely_regression_from_recent_change`; Score `severity` (0 noise → 3 ship-blocker); Choice `primary_failure_kind` (`connection` \| `timeout` \| `not_found` \| `auth` \| `redirect` \| `server_error` \| `client_error` \| `ok` \| `other`); Choice `next_action` (`ignore` \| `fix_route` \| `fix_server` \| `check_auth` \| `investigate_redirect` \| `open_browser` \| `none`) | HTTP + code gate in `mcp_jev urlcheck`. Jev does not fetch. |
 
 ## Required workflow
 
@@ -637,6 +678,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Treat path tokens (`budget`, `migration`, `finance`) as content truth — this pack does not read bodies
 - Dump a whole file or >20 strings into `i18n_copy` `candidates[]` (caller truncates; oversized catalogs are `invalid_state`)
 - Ask Jev to rewrite JSX or edit locale JSON on `i18n_copy` — extract in the caller after `gateI18nCopy`
+- Ask Jev or an MCP tool to hit localhost — HTTP stays in `mcp_jev urlcheck`; `live_url_check` is judgment only
 - Dump a whole monorepo or large excerpts into `code_audit` (Pass 1 is signals-only; Pass 2 caps excerpt at 1200 chars)
 - Put screenshots, binaries, or generated vendor trees in `code_audit` state
 - Put screenshots or image blobs in `computer_use_step` state
@@ -656,6 +698,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 | `MCP_JEV_WRITE_HOSTS` | Optional install-time host write |
 | `MCP_JEV_SKILL_HOME` | Optional dest for the one skill refresh (default `~/.agents/skills/mcp_jev`) |
 | `MCP_JEV_SCAN_CONCURRENCY` | Default parallel workers for `mcp_jev scan` (default 8; 16–32 typical for 6000-files class) |
+| `MCP_JEV_URLCHECK_CONCURRENCY` | Default parallel workers for `mcp_jev urlcheck` (default 8) |
 | `TYPESAFE_BASE_URL` / `JEV_MODEL` / `TYPESAFE_DEFAULT_MODEL` | Optional |
 
 The user store wins; process env is fallback only. Repo `.env` is not auto-loaded.

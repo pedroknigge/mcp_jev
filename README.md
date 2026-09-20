@@ -127,11 +127,11 @@ npm run smoke:packs               # ping → list_packs → describe+run every p
 
 On the host, after restart:
 
-1. **`ping`** — `ok`, `packs` ≥ 12, `api_key_set` boolean. Never invent `run_pack` / `run_questions` answers if the key is missing.
+1. **`ping`** — `ok`, `packs` ≥ 13, `api_key_set` boolean. Never invent `run_pack` / `run_questions` answers if the key is missing.
 2. **`list_packs`** — pick an `id`.
 3. If a pack fits: **`describe_pack`** then **`run_pack`**. If none fits: **`run_questions`** (closed state + typed Choice / Noul / Score).
 
-CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
+CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev urlcheck --base URL` · `mcp_jev hosts print` · `mcp_jev hosts write all` · `mcp_jev config set-key` · `mcp_jev config status`.
 
 ## Verify
 
@@ -293,6 +293,7 @@ Example thresholds (caller-owned): `route.confidence < 0.45` → `ask_user`; `un
 | Claimed behavior vs named tests / CI | `verify_gap` |
 | One module’s imports/exports vs layer | `boundary_check` |
 | Hardcoded UI copy vs i18n (`t()` / locale files) | `i18n_copy` if exact match; else **`run_questions`** (i18n recipe above) |
+| Live localhost / `--base` URLs (HTTP in the CLI, judgment in Jev) | `mcp_jev urlcheck` + `live_url_check` |
 
 Code-owned policy: keep thresholds in **your** functions (see `src/policy-examples.ts`; unit-test them without a TypeSafe key). Jev returns signals; your gate decides. Allowlist/sandbox still required for shell.
 
@@ -386,6 +387,18 @@ Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_par
 ```
 
 Example gate (`src/policy-examples.ts` `gateI18nCopy`): `ok` | `glance` | `block`. Unit-test the gate without a TypeSafe key.
+
+### `urlcheck` / `live_url_check` (localhost URLs)
+
+**Jev never makes HTTP requests.** `mcp_jev urlcheck` discovers or reads routes, hits `--base`, applies the code gate, and optionally `--judge`s failures with pack `live_url_check`. Extra heads → `run_questions`.
+
+```bash
+mcp_jev urlcheck --base http://localhost:3000 --discover
+mcp_jev urlcheck --base http://localhost:3000 --routes-file routes.txt
+mcp_jev urlcheck --base http://127.0.0.1:3000 --routes-file routes.json --judge --json
+```
+
+Exit 1 on hard failures: 5xx, timeout, dns, connection, redirect loop; 404 only with `--strict-404`. 401/403 are auth candidates (warn, not hard fail). Cookies/headers are never printed. Discovery is conservative (Next.js `app/` / `pages/` page+route files without `[dynamic]` segments; Express-ish `app.get('/path')`). Prefer `--routes-file` when you know the list.
 
 ## Update
 
@@ -525,6 +538,7 @@ There is **no** free-form ask tool. `list_packs` / `describe_pack` / `ping` neve
 | `verify_gap` | Nouls `has_adequate_verification` / `claim_is_testable` / `evidence_matches_claim`; Score `verification_gap` (0 none → 3 ship-blocker); Choice `next_proof` | Compute **`code_gate`** (`verifyGapCodeGate` → ship \| add_proof \| block). Jev does not write the test |
 | `boundary_check` | Nouls `crosses_layer` / `leaks_domain_to_ui` / `leaks_infra_to_domain`; Score `boundary_risk`; Choice `fix` (keep \| extract \| move_layer \| unclear) | Extract / move / keep in caller code |
 | `i18n_copy` | Nouls `has_user_facing_hardcoded_copy` / `should_migrate_to_i18n` / `already_partially_internationalized`; Score `i18n_debt` (0 clean → 3 blocking); Choice `hottest_candidate` from `candidates[].id`; Choice `primary_bucket` | Truncate to ~20 candidates. `gateI18nCopy` → `ok` \| `glance` \| `block`. Do not rewrite locale files here |
+| `live_url_check` | Nouls `is_real_break` / `is_expected_auth_or_redirect` / `likely_regression_from_recent_change`; Score `severity`; Choice `primary_failure_kind` / `next_action` | HTTP + code gate in `mcp_jev urlcheck`. Jev does not fetch |
 
 Packs live in `src/packs/` (in-repo). How to add one: [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -559,10 +573,11 @@ flowchart LR
 | `MCP_JEV_WRITE_HOSTS` | No | Install-time host write (`all` or comma list) |
 | `MCP_JEV_SKILL_HOME` | No | Dest for the one skill refresh (default `~/.agents/skills/mcp_jev`) |
 | `MCP_JEV_SCAN_CONCURRENCY` | No | Default parallel workers for `mcp_jev scan` (8; 16–32 typical for multi-k / 6000-files class) |
+| `MCP_JEV_URLCHECK_CONCURRENCY` | No | Default parallel workers for `mcp_jev urlcheck` (8) |
 
 Repo `.env` is **not** auto-loaded. The **user store** `~/.mcp_jev/.env` is. The store wins; process env is fallback only.
 
-CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
+CLI: `mcp_jev doctor` · `mcp_jev smoke` · `mcp_jev scan <path>` · `mcp_jev urlcheck --base URL` · `mcp_jev hosts print` · `mcp_jev config set-key` · `mcp_jev config status` · `mcp_jev config path`.
 
 ## Security
 

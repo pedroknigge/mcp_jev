@@ -13,6 +13,7 @@ test("pack registry loads the starter packs", () => {
     "computer_use_step",
     "i18n_copy",
     "intent_router",
+    "live_url_check",
     "locale_country",
     "model_router",
     "pr_audit",
@@ -20,7 +21,7 @@ test("pack registry loads the starter packs", () => {
     "skill_router",
     "verify_gap",
   ]);
-  assert.equal(packCount(), 12);
+  assert.equal(packCount(), 13);
 });
 
 test("each pack has versioned metadata, schema, example, and questions", () => {
