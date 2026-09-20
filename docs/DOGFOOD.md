@@ -1,6 +1,10 @@
 # Blind-test protocol
 
-Use this when dogfooding mcp_jev **without** shopping the pack menu first. Production still treats packs as shortcuts. Blind tests prove **`run_questions` is first-class** (same `systemOne` path as `run_pack`).
+**Canonical local self-test:** `mcp_jev dogfood` (no prompts). Writes `~/.mcp_jev/dogfood/latest.json` + `latest.md` and keeps the last 10 runs under `~/.mcp_jev/dogfood/history/`. Cron or a human runs the CLI; agents **Read** the report.
+
+**Anti-pattern:** a remote Shell failure (`spawn /bin/zsh ENOENT`, Always Allow still failing) is **not** “mcp_jev broken.” Prefer `mcp_jev dogfood` + Read `~/.mcp_jev/dogfood/latest.md`, or call MCP tools (`run_questions` / `run_pack`) when the server is attached. Shell only if it is actually available.
+
+Use the protocol below when dogfooding mcp_jev **without** shopping the pack menu first. Production still treats packs as shortcuts. Blind tests prove **`run_questions` is first-class** (same `systemOne` path as `run_pack`). `mcp_jev dogfood` runs this Blind Wind-Tunnel (1–2 typed questions invented before `list_packs`) when a key is present.
 
 ## Protocol
 
@@ -37,5 +41,11 @@ More custom recipes: [CUSTOM_JUDGMENTS.md](CUSTOM_JUDGMENTS.md). Pack catalog: [
 
 Standing checks when dogfooding this repo (mcp_jev is the template for Pedro skills):
 
-1. **Version prefix required.** `skills/mcp_jev/SKILL.md` frontmatter `description` always `VERSION — …` (must start with `${package.json version} — `, em dash). Example: `0.0.9 — Install, update, and call…`. `npx tsx scripts/sync-skill-catalog.ts --check` / `npm test` fail if it drifts.
-2. **One skill refresh path.** After `scripts/update.sh` / `install.sh`, the skill is refreshed **once** to `~/.agents/skills/mcp_jev` (`scripts/refresh-skill.sh`; replaces that folder; never nests `mcp_jev/mcp_jev`). Do **not** also run `npx skills add` or `cp` in the same pass. Hosts that do not read `~/.agents/skills` re-add **once** with `npx skills add pedroknigge/mcp_jev --skill mcp_jev`.
+1. **Run the CLI, then Read the report.** Prefer:
+   ```bash
+   mcp_jev dogfood                 # or: mcp_jev dogfood --skip-live
+   # then Read ~/.mcp_jev/dogfood/latest.md
+   ```
+   `--json` prints the machine report. `--urlcheck-base URL` hits urlcheck only if that origin is up. `--out DIR` overrides `~/.mcp_jev/dogfood`. Shell to the user’s Mac only if a local shell is actually available — remote Grok Bot `spawn /bin/zsh ENOENT` is a host bug, not an mcp_jev failure.
+2. **Version prefix required.** `skills/mcp_jev/SKILL.md` frontmatter `description` always `VERSION — …` (must start with `${package.json version} — `, em dash). Example: `0.0.11 — Install, update, and call…`. `npx tsx scripts/sync-skill-catalog.ts --check` / `npm test` fail if it drifts.
+3. **One skill refresh path.** After `scripts/update.sh` / `install.sh`, the skill is refreshed **once** to `~/.agents/skills/mcp_jev` (`scripts/refresh-skill.sh`; replaces that folder; never nests `mcp_jev/mcp_jev`). Do **not** also run `npx skills add` or `cp` in the same pass. Hosts that do not read `~/.agents/skills` re-add **once** with `npx skills add pedroknigge/mcp_jev --skill mcp_jev`.

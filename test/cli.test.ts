@@ -39,10 +39,11 @@ test("config path prints the override directory", () => {
   assert.equal(result.stdout.trim(), dir);
 });
 
-test("help lists doctor, scan, urlcheck, smoke, and help", () => {
+test("help lists doctor, dogfood, scan, urlcheck, smoke, and help", () => {
   const result = runConfig(["help"], {});
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /mcp_jev doctor/);
+  assert.match(result.stdout, /mcp_jev dogfood/);
   assert.match(result.stdout, /mcp_jev scan/);
   assert.match(result.stdout, /mcp_jev urlcheck/);
   assert.match(result.stdout, /mcp_jev smoke/);

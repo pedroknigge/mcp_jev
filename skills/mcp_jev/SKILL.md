@@ -1,9 +1,9 @@
 ---
 name: mcp_jev
 description: >
-  0.0.10 — Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
+  0.0.11 — Install, update, and call the local mcp_jev MCP server for TypeSafe Jev
   (System One) packs. Use when MCP tools are missing, or the user mentions
-  mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, PR audit, review
+  mcp_jev, Jev, TypeSafe, install/update this MCP, doctor, dogfood, PR audit, review
   diff, code audit, verify gap, boundary check, live URL check, localhost
   urlcheck, file audit, i18n / hardcoded UI copy, intent routing, locale/country, computer-use /
   GUI / browser / mobile harness, model router, Cursor, Claude, Codex, Grok, or
@@ -36,11 +36,16 @@ git clone https://github.com/pedroknigge/mcp_jev.git ~/mcp_jev
 mcp_jev doctor
 # or: node ~/mcp_jev/dist/index.js doctor --json
 
-# 3) Optional stdio smoke (no TypeSafe call)
+# 3) Canonical local self-test (writes ~/.mcp_jev/dogfood/latest.md)
+mcp_jev dogfood --skip-live
+# cron / user: mcp_jev dogfood
+# Agents: Read ~/.mcp_jev/dogfood/latest.md — do not treat remote Shell failure as "mcp_jev broken"
+
+# 4) Optional stdio smoke (no TypeSafe call)
 ~/mcp_jev/scripts/verify-mcp.sh
 # After install, agents can run: npm run smoke:packs
 
-# 4) On the MCP host after restart:
+# 5) On the MCP host after restart:
 #    ping → list_packs
 #    Packs are shortcuts: describe_pack → run_pack
 #    If no pack fits: run_questions (closed state + typed Choice/Noul/Score)
@@ -81,6 +86,7 @@ Do **not** also copy the skill folder. Description always starts with `VERSION �
 
 | Need | Use |
 | --- | --- |
+| Validate mcp_jev locally (cron / agent; remote Shell may be broken) | **`mcp_jev dogfood`** then **Read** `~/.mcp_jev/dogfood/latest.md`. If MCP is attached, call `run_questions` / `run_pack`. Do **not** treat `spawn /bin/zsh ENOENT` as “mcp_jev broken”. |
 | MCP tools missing / first-time setup / update | Install script + `doctor` + this skill + GitHub README |
 | A judgment that exists as a pack (`review_diff`, `code_audit`, `verify_gap`, `boundary_check`, `live_url_check`, `i18n_copy`, `intent_router`, `locale_country`, `computer_use_step`, `model_router`, `pr_audit` domain example, or later in-repo ids) | **`run_pack`** — **packs are shortcuts** |
 | A typed Choice / Noul / Score judgment **no pack covers** | **`run_questions`** — closed state + typed questions. Not chat. See [`docs/CUSTOM_JUDGMENTS.md`](../../docs/CUSTOM_JUDGMENTS.md) |
@@ -556,6 +562,7 @@ No-args starts the stdio MCP server. Commands (never print the TypeSafe key):
 | `mcp_jev` | Start stdio MCP |
 | `mcp_jev doctor` | Checkout, dist, wrapper, `api_key_set` (boolean), `NOT_READY` absent. Host files are informational. Exit 1 if not ready. |
 | `mcp_jev doctor --json` | Same report as JSON (`ok`, `ready`, `checks[]` ids: `checkout`, `dist`, `wrapper`, `api_key`, `not_ready_marker`; optional `hosts[]`) |
+| `mcp_jev dogfood` | **Canonical local self-test.** Doctor + offline pack list + Blind Wind-Tunnel (`run_questions`) + optional stock pack / urlcheck. Writes `~/.mcp_jev/dogfood/latest.json` + `latest.md` (history last 10). `--json`, `--skip-live`, `--urlcheck-base URL`, `--out DIR`. Exit 0 if install ok and (no key / `--skip-live` → skipped live) or live succeeded without invent-fail. Also `node dist/cli.js dogfood`. |
 | `mcp_jev hosts print` | Keyless snippets for Cursor, Claude Desktop, Claude Code, Codex, Grok, Antigravity |
 | `mcp_jev hosts write [ids]` | Merge snippets (`all` or comma list: `cursor,claude_desktop,claude_code,codex,grok,antigravity`) |
 | `mcp_jev config set-key` | Interactive store of `TYPESAFE_API_KEY` in `~/.mcp_jev/.env` (chmod 600) |
@@ -573,10 +580,11 @@ Configure the TypeSafe key **once** during MCP install (`install.sh` prompt or `
 
 ## Verify
 
-1. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
-2. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 13. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` or `run_questions` answers.
-3. **`list_packs`** — pick an `id` from the result.
-4. If a pack fits: `describe_pack` / `run_pack`. If **no pack fits**: `run_questions`.
+1. **`mcp_jev dogfood`** — canonical local self-test. Writes `~/.mcp_jev/dogfood/latest.md`. **Read that file.** Do not treat remote Shell failure as “mcp_jev broken.” If the MCP server is attached, call `run_questions` / `run_pack` instead of Shell.
+2. **`mcp_jev doctor`** — checkout, dist, wrapper, key boolean, `NOT_READY` absent.
+3. **`ping`** — `ok`, `server: "mcp_jev"`, `packs` ≥ 13. If `api_key_set` is false: tell the user to run `config set-key`. You may still `list_packs` / `describe_pack`. Never invent `run_pack` or `run_questions` answers.
+4. **`list_packs`** — pick an `id` from the result.
+5. If a pack fits: `describe_pack` / `run_pack`. If **no pack fits**: `run_questions`.
 
 ## Tool contract
 
@@ -671,6 +679,7 @@ Real JS: `client.systemOne({ state, questions, model? })` with `choice`, `noul`,
 - Dump the whole repo into `run_questions` state
 - Put `TYPESAFE_API_KEY` in chat, commits, or every host `env` block
 - Treat non-interactive install without a key as success (`NOT_READY` / doctor must fail)
+- Treat remote Shell failure (`spawn /bin/zsh ENOENT`, Always Allow still failing) as “mcp_jev broken” — run/read `mcp_jev dogfood` (`~/.mcp_jev/dogfood/latest.md`) or call MCP tools
 - Ask Jev for `code_gate` on `pr_audit`, `review_diff`, or `verify_gap`
 - Route a repo-tree / architecture / "try Jev on these files" scan to `pr_audit` (`code_audit` Pass 1 is the file-list pack)
 - Put experiment narrative in `pr_audit` `title` / `body` / `diff_summary`
