@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 import { type Questions, type SystemOneResult } from "@typesafe-ai/sdk";
@@ -12,7 +13,9 @@ import {
   NONE_OPTION,
   UNAVAILABLE_OPTION,
 } from "../src/packs/catalog-choice.js";
+import { type ComputerUseGuidance } from "../src/packs/computer-use-guidance.js";
 import { getPack, questionsFor } from "../src/packs/index.js";
+import { validatePackState } from "../src/validate.js";
 
 test("computer_use_step target questions name the assumed operation", () => {
   const pack = getPack("computer_use_step");
@@ -162,6 +165,69 @@ test("run_pack sends materialized target ids to the mocked TypeSafe client", asy
     type_text: "type_target",
     type_email: "type_target",
     press_offscreen: "offscreen_target",
+  });
+});
+
+test("Android skill recipe runs with closed accessibility ids and matching guidance", async () => {
+  const skill = await readFile(new URL("../skills/mcp_jev/SKILL.md", import.meta.url), "utf8");
+  const recipe = skill.split("### Android accessibility observation")[1]?.split("\n## ")[0];
+  const example = recipe?.match(/```json\n([\s\S]*?)\n```/);
+  assert.ok(example, "missing Android run_pack example in SKILL.md");
+  const input = JSON.parse(example[1]);
+  assert.equal(input.pack_id, "computer_use_step");
+  validatePackState(getPack(input.pack_id), input.state);
+  assert.equal(input.state.app_or_url, "com.example.trails/.SearchActivity");
+  assert.equal(input.state.flags.keyboard_visible, true);
+  assert.equal(input.state.flags.irreversible_ahead, false);
+
+  const queryId = "com.example.trails:id/query";
+  const searchId = "ax:window0/0/1";
+  const answers = {
+    operation: { type: "choice", choice: "type_text", confidence: 0.9, probabilities: { type_text: 0.9 } },
+    click_target: { type: "choice", choice: searchId, confidence: 0.9, probabilities: { [searchId]: 0.9 } },
+    type_target: { type: "choice", choice: queryId, confidence: 0.9, probabilities: { [queryId]: 0.9 } },
+    offscreen_target: { type: "choice", choice: "none", confidence: 0.9, probabilities: { none: 0.9 } },
+    goal_achieved: { type: "noul", noul: 0.02 },
+    observation_stale: { type: "noul", noul: 0.02 },
+    step_confidence: {
+      type: "score", score: 2, confidence: 0.9,
+      legend: { 0: "no", 1: "weak", 2: "adequate", 3: "strong" }, probabilities: { 2: 0.9 },
+    },
+  };
+  let calls = 0;
+  const result = await handleRunPack(input, {
+    config: loadConfig({ TYPESAFE_API_KEY: "test-key" }),
+    systemOne: async (request) => {
+      calls += 1;
+      assert.deepEqual(request.state, input.state);
+      for (const id of ["click_target", "type_target"]) {
+        const target = request.questions[id];
+        assert.ok(target?.type === "choice");
+        assert.deepEqual(Object.keys(target.criteria).sort(), [queryId, searchId, NONE_OPTION].sort());
+        assert.match(String(target.criteria[queryId]), /source=ax/);
+        assert.match(String(target.criteria[searchId]), /name=Find routes/);
+      }
+      const offscreen = request.questions.offscreen_target;
+      assert.ok(offscreen?.type === "choice");
+      assert.deepEqual(Object.keys(offscreen.criteria).sort(), [NONE_OPTION, UNAVAILABLE_OPTION].sort());
+      return {
+        model: "jev-latest",
+        answers,
+        usage: { input_tokens: 80, output_tokens: 12 },
+      } as SystemOneResult<Questions>;
+    },
+  });
+
+  assert.equal(calls, 1);
+  assert.deepEqual(result.answers, answers);
+  const guidance = result.guidance as ComputerUseGuidance;
+  assert.equal(guidance.operation, "type_text");
+  assert.equal(guidance.writer_owns_typed_string, true);
+  assert.deepEqual(guidance.ignore_targets, ["click_target", "offscreen_target"]);
+  assert.deepEqual(guidance.effective_targets, {
+    click_target: null,
+    type_target: queryId,
+    offscreen_target: null,
   });
 });
 

@@ -339,6 +339,44 @@ Harness contract (enforced):
 3. For `type_text` / `type_email`, a **writer LLM** (or stored value) supplies the string. Jev never invents it (`guidance.writer_owns_typed_string`).
 4. `max_steps` and `max_candidates` are harness stop rules, not MCP side effects. Example thresholds: stop if `goal_achieved.noul ≥ 0.8` or `operation` is `done`; re-observe if `observation_stale.noul ≥ 0.65` or `step_confidence.score < 1.5`.
 
+### Android accessibility observation
+
+Use the existing `computer_use_step` pack; no Android-specific fields or new pack are needed. The harness reads the accessibility / UI hierarchy and maps it into the existing schema:
+
+| Android observation | Pack state |
+| --- | --- |
+| Foreground package + activity | `app_or_url`, e.g. `com.example.trails/.SearchActivity` |
+| Resource-id, or harness-owned accessibility / hierarchy id when absent | `items[].id`; keep the id → node handle mapping in the harness |
+| Widget class / semantics | `role`, e.g. `android.widget.EditText` → `textfield`, `android.widget.Button` → `button` |
+| Visible text and `content-desc` | `label` = visible text (or content-desc if no text); `name` = content-desc when different. Both are short strings, not a new `content_desc` field |
+| Current text, focus / enabled / selected state | Optional `value` and string `state`; `focused_field` uses the catalog id. Omit sensitive values |
+| Accessibility origin, keyboard and action risk | `source: "ax"`; caller-computed `flags.keyboard_visible` / `irreversible_ahead` |
+
+Resource-ids can repeat in lists: disambiguate with a stable row key or hierarchy suffix **before** calling. Missing ids can use a harness hierarchy path (the button below has no resource-id). Keep ids unique, never `none` or `unavailable`, and filter each catalog to **at most 254 items** (255 Choice options including `none`). Put only observed visible nodes in `items[]`; known off-screen nodes may go in `offscreen_items[]`. Re-observe and rebuild the mapping when the hierarchy changes; do not execute a stale path. Send a short `observation_summary`, not the raw hierarchy dump, screenshot, or pixels.
+
+Copy-paste **`run_pack` arguments** (synthetic observation: focused empty query, Search button with content-desc “Find routes”, keyboard up):
+
+```json
+{
+  "pack_id": "computer_use_step",
+  "state": {
+    "goal": "Find walking routes near the river",
+    "app_or_url": "com.example.trails/.SearchActivity",
+    "observation_summary": "Route search: empty query focused, Search button enabled, keyboard visible. No results yet.",
+    "focused_field": "com.example.trails:id/query",
+    "items": [
+      { "id": "com.example.trails:id/query", "role": "textfield", "label": "Search routes", "value": "", "state": "focused, enabled", "source": "ax" },
+      { "id": "ax:window0/0/1", "role": "button", "label": "Search", "name": "Find routes", "state": "enabled", "source": "ax" }
+    ],
+    "offscreen_items": [],
+    "history": [{ "action": "wait", "result": "search_form_visible" }],
+    "flags": { "loading": false, "keyboard_visible": true, "irreversible_ahead": false }
+  }
+}
+```
+
+For this catalog, `click_target` and `type_target` each have exactly `none`, `com.example.trails:id/query`, and `ax:window0/0/1`; the empty off-screen catalog has `none` + `unavailable`. If `operation.choice` is `type_text`, use only `guidance.effective_targets.type_target` and ignore the speculative click target, even if it selects Search. A writer LLM (or stored value) supplies the query string; Jev does not. Resolve the selected id in the current harness mapping, execute in code, then re-observe. `irreversible_ahead` is evidence, not authorization: confirmations and stop rules remain caller-owned. If the harness needs a different closed operation catalog, use `run_questions` rather than inventing pack operations.
+
 ## Recipe: `model_router`
 
 Call at **turn start**, before tools. Map `route.choice` in **code** (unit-test the mapper; no TypeSafe key). Closed lanes — do not invent a sixth. **If your invented lane ids or Noul heads differ**, use the **Model route via `run_questions`** recipe above instead of stretching this pack.

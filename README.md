@@ -238,6 +238,8 @@ Closed `candidates[]`, same Login / Submit / Error loading demo as the pack. Ext
 
 Code owns OCR / accessibility / DOM, clicks, and the **writer LLM** for free text. Jev only picks the next operation and a target from your closed catalogs.
 
+Android harnesses: see the [accessibility observation recipe](skills/mcp_jev/SKILL.md#android-accessibility-observation) for package/activity, resource-id / hierarchy ids, content-desc, and a copy-paste `run_pack` call using this same pack.
+
 1. Observe in the harness. Build `items[]` (and optional `offscreen_items[]`) with stable ids. Cap the catalog **before 255** (Choice cap includes `none`). Prefer `source: "dom"` when ids are DOM-closed; `ax` / `ocr` when that is what you observed. Short `observation_summary`. **No screenshots, pixels, or image blobs in state** (rejected as `invalid_state`).
 2. `run_pack` `computer_use_step` with `goal`, `app_or_url`, that observation, recent `history`, and `flags`.
 3. One `systemOne` call fans out `operation` plus a separate target Choice per op (`click_target`, `type_target`, `offscreen_target`) plus `goal_achieved`, `observation_stale`, `step_confidence`. Each target question assumes its operation.
