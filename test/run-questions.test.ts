@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { type Questions, type SystemOneResult } from "@typesafe-ai/sdk";
@@ -326,6 +327,66 @@ test("run_questions maps a changelog-style custom judgment onto mocked systemOne
   assert.deepEqual(result.usage, { input_tokens: 90, output_tokens: 14 });
   assert.equal(result.pack_id, undefined);
 });
+
+for (const doc of ["docs/CUSTOM_JUDGMENTS.md", "skills/mcp_jev/SKILL.md"]) {
+  test(`${doc} retrieve_then_judge recipe sends only supplied passage ids plus none`, async () => {
+    const markdown = readFileSync(new URL(`../${doc}`, import.meta.url), "utf8");
+    const example = markdown.match(/^#{2,4} [^\n]*`retrieve_then_judge`[^\n]*\n[\s\S]*?```json\n([\s\S]*?)\n```/m);
+    assert.ok(example, `${doc} is missing the retrieve_then_judge JSON recipe`);
+    const parsed = parseCustomRunInput(JSON.parse(example[1]));
+    const passages = parsed.state.passages as Array<{ id: string; text: string }>;
+    assert.equal(typeof parsed.state.claim, "string");
+    assert.deepEqual(passages.map((passage) => passage.id), ["L000", "L001"]);
+    assert.ok(passages.every((passage) => passage.text.length > 0));
+    assert.deepEqual(
+      parsed.questions.map(({ id, type }) => ({ id, type })),
+      [
+        { id: "passage", type: "choice" },
+        { id: "evidence_sufficient", type: "noul" },
+        { id: "grounding", type: "score" },
+      ],
+    );
+
+    const mocked: SystemOneResult<Questions> = {
+      model: "jev-latest",
+      answers: {
+        passage: {
+          type: "choice",
+          choice: "L000",
+          confidence: 0.9,
+          probabilities: { L000: 0.9, L001: 0.05, none: 0.05 },
+        },
+        evidence_sufficient: { type: "noul", noul: 0.95 },
+        grounding: {
+          type: "score",
+          score: 2.9,
+          confidence: 0.9,
+          legend: { 0: "none", 1: "topical", 2: "partial", 3: "explicit" },
+          probabilities: { 0: 0, 1: 0, 2: 0.1, 3: 0.9 },
+        },
+      },
+      usage: { input_tokens: 100, output_tokens: 15 },
+    };
+    let calls = 0;
+    const result = await handleRunQuestions(parsed, {
+      config: configWithKey(),
+      systemOne: async (input) => {
+        calls += 1;
+        assert.deepEqual(input.state, parsed.state);
+        assert.equal(input.model, "jev-latest");
+        for (const { id, ...question } of parsed.questions) {
+          assert.deepEqual(input.questions[id], question);
+        }
+        const passage = input.questions.passage;
+        assert.ok(passage?.type === "choice");
+        assert.deepEqual(Object.keys(passage.criteria), [...passages.map(({ id }) => id), "none"]);
+        return mocked;
+      },
+    });
+    assert.equal(calls, 1);
+    assert.deepEqual(result, mocked);
+  });
+}
 
 test("run_questions accepts an optional model override", async () => {
   const config = configWithKey();
